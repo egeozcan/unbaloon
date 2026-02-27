@@ -7,6 +7,9 @@ import {
   SPAWN_RAMP_DURATION,
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
+  GAUGE_MAX,
+  GAUGE_SPEED_MULTIPLIER,
+  GAUGE_FLASH_DURATION,
 } from './constants';
 
 export class Game {
@@ -25,6 +28,15 @@ export class Game {
   private spawnTimer: number = 0;
   private running: boolean = false;
   private rafId: number = 0;
+
+  // Drag tracking: pointer id → drag state
+  private drags: Map<number, { balloon: Balloon; startX: number; startY: number; moved: boolean }> = new Map();
+
+  // Score & gauge
+  private gaugeCount: number = 0;
+  private level: number = 0;
+  private speedMultiplier: number = 1;
+  private gaugeFlashTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -73,6 +85,11 @@ export class Game {
 
     // Remove off-screen and dead balloons
     this.balloons = this.balloons.filter(b => !b.isOffScreen() && !b.isDead());
+
+    // Gauge flash countdown
+    if (this.gaugeFlashTimer > 0) {
+      this.gaugeFlashTimer = Math.max(0, this.gaugeFlashTimer - dt);
+    }
   }
 
   private draw(): void {
@@ -86,16 +103,19 @@ export class Game {
       this.renderer.drawBalloon(b);
     }
 
+    this.renderer.drawGauge(this.width, this.gaugeCount, this.level, this.gaugeFlashTimer);
+
     ctx.restore();
   }
 
   private getSpawnInterval(): number {
     const t = Math.min(this.elapsed / SPAWN_RAMP_DURATION, 1);
-    return SPAWN_INTERVAL_START + (SPAWN_INTERVAL_END - SPAWN_INTERVAL_START) * t;
+    const base = SPAWN_INTERVAL_START + (SPAWN_INTERVAL_END - SPAWN_INTERVAL_START) * t;
+    return base / this.speedMultiplier;
   }
 
   private spawnBalloon(): void {
-    const b = new Balloon(this.width, this.height);
+    const b = new Balloon(this.width, this.height, this.speedMultiplier);
     b.number = this.weightedRandomNumber();
     this.balloons.push(b);
   }
@@ -110,23 +130,69 @@ export class Game {
     return 1;
   }
 
-  private handleInput(x: number, y: number): void {
-    // Iterate in reverse so topmost (last drawn) balloon is tapped first
-    for (let i = this.balloons.length - 1; i >= 0; i--) {
-      const b = this.balloons[i];
-      if (b.hitTest(x, y)) {
-        const result = b.tap();
-        if (result === 'decremented') {
-          this.audio.playTap();
-        } else {
-          this.audio.playPop();
-          if (navigator.vibrate) {
-            navigator.vibrate(VIBRATE_DURATION);
-          }
-        }
-        break; // Only tap one balloon
+  private static DRAG_THRESHOLD = 10; // px before a touch counts as drag vs tap
+
+  private tapBalloon(b: Balloon): void {
+    const result = b.tap();
+    this.incrementGauge();
+    if (result === 'decremented') {
+      this.audio.playTap();
+    } else {
+      this.audio.playPop();
+      if (navigator.vibrate) {
+        navigator.vibrate(VIBRATE_DURATION);
       }
     }
+  }
+
+  private incrementGauge(): void {
+    this.gaugeCount++;
+    if (this.gaugeCount >= GAUGE_MAX) {
+      this.gaugeCount = 0;
+      this.level++;
+      this.speedMultiplier *= GAUGE_SPEED_MULTIPLIER;
+      this.gaugeFlashTimer = GAUGE_FLASH_DURATION;
+    }
+  }
+
+  private findBalloon(x: number, y: number): Balloon | null {
+    for (let i = this.balloons.length - 1; i >= 0; i--) {
+      if (this.balloons[i].hitTest(x, y)) return this.balloons[i];
+    }
+    return null;
+  }
+
+  private handlePointerDown(id: number, x: number, y: number): void {
+    const b = this.findBalloon(x, y);
+    if (b) {
+      b.dragged = true;
+      this.drags.set(id, { balloon: b, startX: x, startY: y, moved: false });
+    }
+  }
+
+  private handlePointerMove(id: number, x: number, y: number): void {
+    const drag = this.drags.get(id);
+    if (!drag) return;
+    const dx = x - drag.startX;
+    const dy = y - drag.startY;
+    if (!drag.moved && dx * dx + dy * dy >= Game.DRAG_THRESHOLD * Game.DRAG_THRESHOLD) {
+      drag.moved = true;
+    }
+    if (drag.moved) {
+      drag.balloon.x = x;
+      drag.balloon.y = y;
+      drag.balloon.baseX = x;
+    }
+  }
+
+  private handlePointerUp(id: number): void {
+    const drag = this.drags.get(id);
+    if (!drag) return;
+    drag.balloon.dragged = false;
+    if (!drag.moved) {
+      this.tapBalloon(drag.balloon);
+    }
+    this.drags.delete(id);
   }
 
   private bindEvents(): void {
@@ -134,14 +200,43 @@ export class Game {
     this.canvas.addEventListener('touchstart', (e: TouchEvent) => {
       e.preventDefault();
       for (let i = 0; i < e.changedTouches.length; i++) {
-        const touch = e.changedTouches[i];
-        this.handleInput(touch.clientX, touch.clientY);
+        const t = e.changedTouches[i];
+        this.handlePointerDown(t.identifier, t.clientX, t.clientY);
       }
     }, { passive: false });
 
-    // Mouse fallback for desktop
+    this.canvas.addEventListener('touchmove', (e: TouchEvent) => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        this.handlePointerMove(t.identifier, t.clientX, t.clientY);
+      }
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchend', (e: TouchEvent) => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        this.handlePointerUp(e.changedTouches[i].identifier);
+      }
+    }, { passive: false });
+
+    this.canvas.addEventListener('touchcancel', (e: TouchEvent) => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        this.handlePointerUp(e.changedTouches[i].identifier);
+      }
+    });
+
+    // Mouse fallback for desktop (use id -1)
     this.canvas.addEventListener('mousedown', (e: MouseEvent) => {
-      this.handleInput(e.clientX, e.clientY);
+      this.handlePointerDown(-1, e.clientX, e.clientY);
+    });
+
+    window.addEventListener('mousemove', (e: MouseEvent) => {
+      this.handlePointerMove(-1, e.clientX, e.clientY);
+    });
+
+    window.addEventListener('mouseup', () => {
+      this.handlePointerUp(-1);
     });
 
     // Resize
@@ -152,6 +247,11 @@ export class Game {
       if (document.hidden) {
         this.running = false;
         cancelAnimationFrame(this.rafId);
+        // Release all drags
+        for (const [id, drag] of this.drags) {
+          drag.balloon.dragged = false;
+          this.drags.delete(id);
+        }
       } else {
         this.running = true;
         this.lastTime = performance.now();

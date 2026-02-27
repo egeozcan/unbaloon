@@ -41,8 +41,11 @@ export class Balloon {
   radiusX: number;
   radiusY: number;
 
+  // Dragging
+  dragged: boolean = false;
+
   // Movement
-  private baseX: number;
+  baseX: number;
   private speed: number;
   private swayOffset: number;
   private swayTime: number = 0;
@@ -56,7 +59,7 @@ export class Balloon {
   popProgress: number = 0;
   particles: Particle[] = [];
 
-  constructor(screenWidth: number, screenHeight: number) {
+  constructor(screenWidth: number, screenHeight: number, speedMultiplier: number = 1) {
     this.radiusX = (screenWidth * BALLOON_WIDTH_RATIO) / 2;
     this.radiusY = this.radiusX * BALLOON_ASPECT;
 
@@ -68,8 +71,8 @@ export class Balloon {
     // Start just below screen bottom
     this.y = screenHeight + this.radiusY;
 
-    // Random float speed
-    this.speed = FLOAT_SPEED_MIN + Math.random() * (FLOAT_SPEED_MAX - FLOAT_SPEED_MIN);
+    // Random float speed, scaled by level multiplier
+    this.speed = (FLOAT_SPEED_MIN + Math.random() * (FLOAT_SPEED_MAX - FLOAT_SPEED_MIN)) * speedMultiplier;
 
     // Random sway phase offset
     this.swayOffset = Math.random() * Math.PI * 2;
@@ -139,18 +142,22 @@ export class Balloon {
   }
 
   private updateFloating(dt: number): void {
-    this.y -= this.speed * dt;
-    this.swayTime += dt;
-    this.x = this.baseX + Math.sin(this.swayTime * SWAY_FREQUENCY * Math.PI * 2 + this.swayOffset) * SWAY_AMPLITUDE;
+    if (!this.dragged) {
+      this.y -= this.speed * dt;
+      this.swayTime += dt;
+      this.x = this.baseX + Math.sin(this.swayTime * SWAY_FREQUENCY * Math.PI * 2 + this.swayOffset) * SWAY_AMPLITUDE;
+    }
     this.scaleX = 1;
     this.scaleY = 1;
   }
 
   private updateSqueeze(dt: number): void {
-    // Also keep floating during squeeze
-    this.y -= this.speed * dt;
-    this.swayTime += dt;
-    this.x = this.baseX + Math.sin(this.swayTime * SWAY_FREQUENCY * Math.PI * 2 + this.swayOffset) * SWAY_AMPLITUDE;
+    // Also keep floating during squeeze (unless dragged)
+    if (!this.dragged) {
+      this.y -= this.speed * dt;
+      this.swayTime += dt;
+      this.x = this.baseX + Math.sin(this.swayTime * SWAY_FREQUENCY * Math.PI * 2 + this.swayOffset) * SWAY_AMPLITUDE;
+    }
 
     this.squeezeTimer += dt;
     const t = Math.min(this.squeezeTimer / SQUEEZE_DURATION, 1);

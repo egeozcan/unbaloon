@@ -5,6 +5,12 @@ import {
   STRING_LENGTH_RATIO,
   POP_EXPAND_SCALE,
   PARTICLE_LIFETIME,
+  GAUGE_MAX,
+  GAUGE_RADIUS_RATIO,
+  GAUGE_MARGIN,
+  GAUGE_LINE_WIDTH_RATIO,
+  GAUGE_COLORS,
+  GAUGE_FLASH_DURATION,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
 
@@ -123,5 +129,105 @@ export class Renderer {
       ctx.fill();
       ctx.restore();
     }
+  }
+
+  drawGauge(screenWidth: number, count: number, level: number, flashTimer: number): void {
+    const ctx = this.ctx;
+    const radius = screenWidth * GAUGE_RADIUS_RATIO;
+    const lineWidth = radius * GAUGE_LINE_WIDTH_RATIO;
+    const cx = screenWidth - GAUGE_MARGIN - radius;
+    const cy = GAUGE_MARGIN + radius;
+
+    ctx.save();
+
+    // Flash effect on level-up
+    if (flashTimer > 0) {
+      const flashAlpha = 0.4 * (flashTimer / GAUGE_FLASH_DURATION);
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + lineWidth, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
+      ctx.fill();
+    }
+
+    // Background track
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // Colored arc — sweeps from top (−π/2) clockwise
+    if (count > 0) {
+      const fraction = count / GAUGE_MAX;
+      const startAngle = -Math.PI / 2;
+      const endAngle = startAngle + fraction * Math.PI * 2;
+
+      // Create a gradient along the arc using segmented colors
+      const segments = Math.max(1, Math.ceil(fraction * GAUGE_COLORS.length));
+      for (let i = 0; i < segments; i++) {
+        const segStart = startAngle + (i / GAUGE_COLORS.length) * Math.PI * 2;
+        const segEnd = Math.min(
+          startAngle + ((i + 1) / GAUGE_COLORS.length) * Math.PI * 2,
+          endAngle
+        );
+        if (segStart >= endAngle) break;
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, segStart, segEnd);
+        ctx.strokeStyle = GAUGE_COLORS[i % GAUGE_COLORS.length];
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'butt';
+        ctx.stroke();
+      }
+
+      // Round cap at the start
+      const capX = cx + Math.cos(startAngle) * radius;
+      const capY = cy + Math.sin(startAngle) * radius;
+      ctx.beginPath();
+      ctx.arc(capX, capY, lineWidth / 2, 0, Math.PI * 2);
+      ctx.fillStyle = GAUGE_COLORS[0];
+      ctx.fill();
+
+      // Round cap at the end
+      const endX = cx + Math.cos(endAngle) * radius;
+      const endY = cy + Math.sin(endAngle) * radius;
+      const endColorIdx = Math.min(
+        Math.floor(fraction * GAUGE_COLORS.length),
+        GAUGE_COLORS.length - 1
+      );
+      ctx.beginPath();
+      ctx.arc(endX, endY, lineWidth / 2, 0, Math.PI * 2);
+      ctx.fillStyle = GAUGE_COLORS[endColorIdx];
+      ctx.fill();
+    }
+
+    // Inner circle background (semi-transparent)
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius - lineWidth * 0.8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.fill();
+
+    // Count number
+    const countSize = Math.round(radius * 0.75);
+    ctx.font = `bold ${countSize}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#333';
+    ctx.fillText(String(count), cx, cy);
+
+    // Level indicator below gauge
+    if (level > 0) {
+      const starSize = Math.round(radius * 0.32);
+      ctx.font = `bold ${starSize}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      // Show colored stars for each level (up to 5, then number)
+      const stars = level <= 5 ? '\u2B50'.repeat(level) : `\u2B50\u00D7${level}`;
+      ctx.fillStyle = '#FF8800';
+      ctx.fillText(stars, cx, cy + radius + lineWidth / 2 + 4);
+    }
+
+    ctx.restore();
   }
 }
