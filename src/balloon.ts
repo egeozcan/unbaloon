@@ -83,7 +83,7 @@ export class Balloon {
   }
 
   hitTest(px: number, py: number): boolean {
-    if (this.state !== 'floating') return false;
+    if (this.state !== 'floating' && this.state !== 'squeezing') return false;
     // Ellipse hit test: ((px-cx)/rx)^2 + ((py-cy)/ry)^2 <= 1
     const dx = (px - this.x) / this.radiusX;
     const dy = (py - this.y) / this.radiusY;
