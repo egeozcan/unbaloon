@@ -21,9 +21,97 @@
       height: 100%;
       touch-action: none;
     }
+
+    #start-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #87CEEB 0%, #E0F0FF 100%);
+      z-index: 10;
+      gap: 32px;
+      transition: opacity 0.4s ease;
+    }
+    #start-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .start-title {
+      font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive, sans-serif;
+      font-size: clamp(48px, 12vw, 96px);
+      font-weight: bold;
+      color: #fff;
+      text-shadow:
+        3px 3px 0 #FF4444,
+        -2px -2px 0 #4488FF,
+        2px -2px 0 #44BB44,
+        -2px 2px 0 #FFD700;
+      letter-spacing: 2px;
+    }
+    .start-btn {
+      font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive, sans-serif;
+      font-size: clamp(24px, 6vw, 42px);
+      font-weight: bold;
+      color: #fff;
+      background: linear-gradient(180deg, #FF6B6B 0%, #FF4444 100%);
+      border: none;
+      border-radius: 50px;
+      padding: 16px 64px;
+      cursor: pointer;
+      box-shadow:
+        0 6px 0 #CC2222,
+        0 8px 20px rgba(0,0,0,0.15);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .start-btn:active {
+      transform: translateY(4px);
+      box-shadow:
+        0 2px 0 #CC2222,
+        0 3px 10px rgba(0,0,0,0.15);
+    }
+    .fullscreen-toggle {
+      font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive, sans-serif;
+      font-size: clamp(14px, 3.5vw, 20px);
+      color: #5588BB;
+      background: rgba(255, 255, 255, 0.7);
+      border: 2px solid rgba(85, 136, 187, 0.4);
+      border-radius: 30px;
+      padding: 10px 28px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .fullscreen-toggle:active {
+      background: rgba(255, 255, 255, 0.9);
+    }
+    #play-again-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #87CEEB 0%, #E0F0FF 100%);
+      z-index: 10;
+      transition: opacity 0.4s ease;
+    }
+    #play-again-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
+  <div id="start-screen">
+    <div class="start-title">Unbaloon</div>
+    <button class="start-btn" id="start-btn">Play!</button>
+    <button class="fullscreen-toggle" id="fullscreen-btn">Fullscreen</button>
+  </div>
+  <div id="play-again-screen" class="hidden">
+    <button class="start-btn" id="play-again-btn">Play again!</button>
+  </div>
   <canvas id="game"></canvas>
   <script type="module" src="/src/index.ts"></script>
 </body>
