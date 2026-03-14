@@ -7,9 +7,6 @@ import {
   SPAWN_RAMP_DURATION,
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
-  GAUGE_MAX,
-  GAUGE_SPEED_MULTIPLIER,
-  GAUGE_FLASH_DURATION,
 } from './constants';
 
 export class Game {
@@ -31,12 +28,6 @@ export class Game {
 
   // Drag tracking: pointer id → drag state
   private drags: Map<number, { balloon: Balloon; startX: number; startY: number; moved: boolean }> = new Map();
-
-  // Score & gauge
-  private gaugeCount: number = 0;
-  private level: number = 0;
-  private speedMultiplier: number = 1;
-  private gaugeFlashTimer: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -85,11 +76,6 @@ export class Game {
 
     // Remove off-screen and dead balloons
     this.balloons = this.balloons.filter(b => !b.isOffScreen() && !b.isDead());
-
-    // Gauge flash countdown
-    if (this.gaugeFlashTimer > 0) {
-      this.gaugeFlashTimer = Math.max(0, this.gaugeFlashTimer - dt);
-    }
   }
 
   private draw(): void {
@@ -103,19 +89,17 @@ export class Game {
       this.renderer.drawBalloon(b);
     }
 
-    this.renderer.drawGauge(this.width, this.gaugeCount, this.level, this.gaugeFlashTimer);
-
     ctx.restore();
   }
 
   private getSpawnInterval(): number {
     const t = Math.min(this.elapsed / SPAWN_RAMP_DURATION, 1);
     const base = SPAWN_INTERVAL_START + (SPAWN_INTERVAL_END - SPAWN_INTERVAL_START) * t;
-    return base / this.speedMultiplier;
+    return base;
   }
 
   private spawnBalloon(): void {
-    const b = new Balloon(this.width, this.height, this.speedMultiplier);
+    const b = new Balloon(this.width, this.height);
     b.number = this.weightedRandomNumber();
     this.balloons.push(b);
   }
@@ -134,7 +118,6 @@ export class Game {
 
   private tapBalloon(b: Balloon): void {
     const result = b.tap();
-    this.incrementGauge();
     if (result === 'decremented') {
       this.audio.playTap();
     } else {
@@ -142,16 +125,6 @@ export class Game {
       if (navigator.vibrate) {
         navigator.vibrate(VIBRATE_DURATION);
       }
-    }
-  }
-
-  private incrementGauge(): void {
-    this.gaugeCount++;
-    if (this.gaugeCount >= GAUGE_MAX) {
-      this.gaugeCount = 0;
-      this.level++;
-      this.speedMultiplier *= GAUGE_SPEED_MULTIPLIER;
-      this.gaugeFlashTimer = GAUGE_FLASH_DURATION;
     }
   }
 

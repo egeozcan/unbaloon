@@ -59,7 +59,7 @@ export class Balloon {
   popProgress: number = 0;
   particles: Particle[] = [];
 
-  constructor(screenWidth: number, screenHeight: number, speedMultiplier: number = 1) {
+  constructor(screenWidth: number, screenHeight: number) {
     this.radiusX = (screenWidth * BALLOON_WIDTH_RATIO) / 2;
     this.radiusY = this.radiusX * BALLOON_ASPECT;
 
@@ -71,8 +71,8 @@ export class Balloon {
     // Start just below screen bottom
     this.y = screenHeight + this.radiusY;
 
-    // Random float speed, scaled by level multiplier
-    this.speed = (FLOAT_SPEED_MIN + Math.random() * (FLOAT_SPEED_MAX - FLOAT_SPEED_MIN)) * speedMultiplier;
+    // Random float speed
+    this.speed = FLOAT_SPEED_MIN + Math.random() * (FLOAT_SPEED_MAX - FLOAT_SPEED_MIN);
 
     // Random sway phase offset
     this.swayOffset = Math.random() * Math.PI * 2;

@@ -58,12 +58,3 @@ export const BG_COLOR_BOTTOM = '#E0F0FF'; // lighter blue
 
 // String (the balloon string)
 export const STRING_LENGTH_RATIO = 0.35; // relative to balloon height
-
-// Score gauge
-export const GAUGE_MAX = 20;
-export const GAUGE_RADIUS_RATIO = 0.09;  // relative to screen width
-export const GAUGE_MARGIN = 16;           // CSS px from edges
-export const GAUGE_LINE_WIDTH_RATIO = 0.22; // relative to gauge radius
-export const GAUGE_SPEED_MULTIPLIER = 1.2;  // speed increase per level reset
-export const GAUGE_COLORS = ['#FF4444', '#FF8800', '#FFD700', '#44BB44', '#4488FF', '#AA44FF'];
-export const GAUGE_FLASH_DURATION = 0.4; // seconds
