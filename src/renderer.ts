@@ -6,8 +6,15 @@ import {
   POP_EXPAND_SCALE,
   PARTICLE_LIFETIME,
   RAINBOW_GRADIENT_COLORS,
+  RAINBOW_DURATION,
+  STARBURST_DURATION,
+  CONFETTI_DURATION,
+  BUBBLE_DURATION,
+  CONFETTI_WIDTH,
+  CONFETTI_HEIGHT,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
+import type { ActiveEvent, Bubble, ConfettiPiece, StarBurstStar } from './surprise';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -336,6 +343,122 @@ export class Renderer {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
       ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  drawSurpriseEventBelow(event: ActiveEvent, width: number, height: number): void {
+    switch (event.type) {
+      case 'rainbow': this.drawRainbow(event, width, height); break;
+      case 'confetti': this.drawConfetti(event); break;
+      case 'starburst': this.drawStarBurst(event); break;
+    }
+  }
+
+  drawSurpriseEventAbove(event: ActiveEvent): void {
+    if (event.type === 'bubbles' && event.bubbles) {
+      this.drawBubbles(event.bubbles, event.age, event.duration);
+    }
+  }
+
+  private drawRainbow(event: ActiveEvent, width: number, height: number): void {
+    const ctx = this.ctx;
+    const t = event.age / RAINBOW_DURATION;
+    let alpha: number;
+    if (t < 0.3) alpha = t / 0.3;
+    else if (t < 0.7) alpha = 1;
+    else alpha = 1 - (t - 0.7) / 0.3;
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.5;
+    const cx = width / 2;
+    const cy = height * 0.6;
+    const baseRadius = Math.min(width, height) * 0.35;
+    const bandWidth = baseRadius * 0.04;
+    RAINBOW_GRADIENT_COLORS.forEach((color, i) => {
+      const r = baseRadius - i * bandWidth * 2;
+      if (r <= 0) return;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, Math.PI, 0);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = bandWidth;
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  private drawConfetti(event: ActiveEvent): void {
+    if (!event.confetti) return;
+    const ctx = this.ctx;
+    for (const c of event.confetti) {
+      const alpha = 1 - c.age / CONFETTI_DURATION;
+      if (alpha <= 0) continue;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rotation);
+      ctx.fillStyle = c.color;
+      ctx.fillRect(-CONFETTI_WIDTH / 2, -CONFETTI_HEIGHT / 2, CONFETTI_WIDTH, CONFETTI_HEIGHT);
+      ctx.restore();
+    }
+  }
+
+  private drawStarBurst(event: ActiveEvent): void {
+    if (!event.stars) return;
+    const ctx = this.ctx;
+    for (const s of event.stars) {
+      const alpha = 1 - s.age / STARBURST_DURATION;
+      if (alpha <= 0) continue;
+      const twinkle = 0.5 + 0.5 * Math.sin(s.age * 12);
+      ctx.save();
+      ctx.globalAlpha = alpha * twinkle;
+      ctx.translate(s.x, s.y);
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const angle = (Math.PI * 2 * i) / 10 - Math.PI / 2;
+        const r = i % 2 === 0 ? s.size : s.size * 0.45;
+        const px = Math.cos(angle) * r;
+        const py = Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#FFD700';
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  private drawBubbles(bubbles: Bubble[], eventAge: number, duration: number): void {
+    const ctx = this.ctx;
+    for (const b of bubbles) {
+      if (b.popped) {
+        if (b.popAge < 0.3) {
+          const splashAlpha = 1 - b.popAge / 0.3;
+          const splashR = b.radius * (1 + b.popAge * 3);
+          ctx.save();
+          ctx.globalAlpha = splashAlpha * 0.4;
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, splashR, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(150, 200, 255, 1)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        }
+        continue;
+      }
+      const alpha = Math.min(1, 1 - (eventAge - duration + 0.5) / 0.5);
+      if (alpha <= 0) continue;
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.35;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(150, 200, 255, 1)';
+      ctx.fill();
+      // Highlight
+      ctx.beginPath();
+      ctx.arc(b.x - b.radius * 0.25, b.y - b.radius * 0.25, b.radius * 0.2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.fill();
       ctx.restore();
     }
