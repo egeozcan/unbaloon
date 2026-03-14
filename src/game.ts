@@ -1,12 +1,17 @@
-import { Balloon } from './balloon';
+import { Balloon, SpecialType } from './balloon';
 import { Renderer } from './renderer';
 import { AudioManager } from './audio';
+import { SessionManager, Phase } from './session';
+import { SurpriseManager, SurpriseEventType } from './surprise';
 import {
-  SPAWN_INTERVAL_START,
-  SPAWN_INTERVAL_END,
-  SPAWN_RAMP_DURATION,
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
+  SPECIAL_SPAWN_CHANCE,
+  SPECIAL_SURPRISE_INCREMENT,
+  FINALE_WAIT_TIMEOUT,
+  FINALE_TAP_DELAY,
+  FINALE_CELEBRATION_DURATION,
+  FINALE_FADE_DURATION,
 } from './constants';
 
 export class Game {
@@ -29,15 +34,32 @@ export class Game {
   // Drag tracking: pointer id → drag state
   private drags: Map<number, { balloon: Balloon; startX: number; startY: number; moved: boolean }> = new Map();
 
+  // Session and surprise systems
+  private session: SessionManager;
+  private surprise: SurpriseManager;
+  private previousPhase: Phase = 1;
+
+  // Surprise counter
+  private lastPopX: number = 0;
+  private lastPopY: number = 0;
+
+  // Finale state
+  private finaleState: 'none' | 'waiting' | 'balloon' | 'celebrating' | 'fading' | 'done' = 'none';
+  private finaleTimer: number = 0;
+  private finaleSpawnTime: number = 0;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.renderer = new Renderer(this.ctx);
     this.audio = new AudioManager();
+    this.session = new SessionManager();
+    this.surprise = new SurpriseManager();
   }
 
   start(): void {
     this.handleResize();
+    this.surprise.setScreenSize(this.width, this.height);
     this.bindEvents();
     this.running = true;
     this.lastTime = performance.now();
@@ -61,12 +83,27 @@ export class Game {
   };
 
   private update(dt: number): void {
-    // Spawn logic
-    this.spawnTimer += dt;
-    const spawnInterval = this.getSpawnInterval();
-    if (this.spawnTimer >= spawnInterval) {
-      this.spawnTimer -= spawnInterval;
-      this.spawnBalloon();
+    const phase = this.session.getPhase(this.elapsed);
+
+    // Detect phase transition to finale
+    if (phase === 4 && this.previousPhase !== 4) {
+      this.enterFinale();
+    }
+    this.previousPhase = phase;
+
+    // Handle finale states
+    if (this.finaleState !== 'none') {
+      this.updateFinale(dt);
+    }
+
+    // Spawn logic (only if not in finale)
+    if (this.finaleState === 'none') {
+      this.spawnTimer += dt;
+      const spawnInterval = this.session.getSpawnInterval(this.elapsed);
+      if (spawnInterval !== Infinity && this.spawnTimer >= spawnInterval) {
+        this.spawnTimer -= spawnInterval;
+        this.spawnBalloon();
+      }
     }
 
     // Update balloons
@@ -76,6 +113,18 @@ export class Game {
 
     // Remove off-screen and dead balloons
     this.balloons = this.balloons.filter(b => !b.isOffScreen() && !b.isDead());
+
+    // Update surprise events
+    this.surprise.update(dt);
+
+    // Try to fire pending surprise event
+    if (this.surprise.hasPendingEvent() && this.finaleState === 'none') {
+      const windDown = phase === 3;
+      const eventType = this.surprise.consumePendingEvent(this.lastPopX, this.lastPopY, windDown);
+      if (eventType) {
+        this.playSurpriseSound(eventType);
+      }
+    }
   }
 
   private draw(): void {
@@ -85,21 +134,51 @@ export class Game {
 
     this.renderer.drawBackground(this.width, this.height);
 
+    // Surprise events below balloons (rainbow, confetti, starburst)
+    const event = this.surprise.getActiveEvent();
+    if (event) {
+      this.renderer.drawSurpriseEventBelow(event, this.width, this.height);
+    }
+
     for (const b of this.balloons) {
       this.renderer.drawBalloon(b);
+    }
+
+    // Surprise events above balloons (bubbles)
+    if (event) {
+      this.renderer.drawSurpriseEventAbove(event);
+    }
+
+    // Finale celebration events (multiple simultaneous)
+    for (const fe of this.surprise.getFinaleEvents()) {
+      this.renderer.drawSurpriseEventBelow(fe, this.width, this.height);
+    }
+
+    // Finale fade overlay
+    if (this.finaleState === 'fading') {
+      const fadeAlpha = Math.min(1, this.finaleTimer / FINALE_FADE_DURATION);
+      ctx.fillStyle = `rgba(135, 206, 235, ${fadeAlpha})`;
+      ctx.fillRect(0, 0, this.width, this.height);
     }
 
     ctx.restore();
   }
 
-  private getSpawnInterval(): number {
-    const t = Math.min(this.elapsed / SPAWN_RAMP_DURATION, 1);
-    const base = SPAWN_INTERVAL_START + (SPAWN_INTERVAL_END - SPAWN_INTERVAL_START) * t;
-    return base;
-  }
-
   private spawnBalloon(): void {
-    const b = new Balloon(this.width, this.height);
+    const speedMul = this.session.getSpeedMultiplier(this.elapsed);
+    const sizeMul = this.session.getSizeMultiplier(this.elapsed);
+
+    // Check for special balloon
+    const hasSpecialOnScreen = this.balloons.some(b => b.specialType !== undefined);
+    if (!hasSpecialOnScreen && Math.random() < SPECIAL_SPAWN_CHANCE) {
+      const types: SpecialType[] = ['star', 'animal-cat', 'animal-frog', 'animal-bird', 'rainbow'];
+      const type = types[Math.floor(Math.random() * types.length)];
+      const b = Balloon.createSpecial(this.width, this.height, type);
+      this.balloons.push(b);
+      return;
+    }
+
+    const b = new Balloon(this.width, this.height, speedMul, sizeMul);
     b.number = this.weightedRandomNumber();
     this.balloons.push(b);
   }
@@ -117,11 +196,23 @@ export class Game {
   private static DRAG_THRESHOLD = 10; // px before a touch counts as drag vs tap
 
   private tapBalloon(b: Balloon): void {
+    this.lastPopX = b.x;
+    this.lastPopY = b.y;
+
+    const isSpecial = b.specialType !== undefined;
     const result = b.tap();
+
+    // Increment surprise counter
+    const increment = isSpecial ? SPECIAL_SURPRISE_INCREMENT : 1;
+    this.surprise.incrementCounter(increment);
+
     if (result === 'decremented') {
       this.audio.playTap();
     } else {
       this.audio.playPop();
+      if (isSpecial) {
+        this.playSpecialPopSound(b);
+      }
       if (navigator.vibrate) {
         navigator.vibrate(VIBRATE_DURATION);
       }
@@ -136,10 +227,31 @@ export class Game {
   }
 
   private handlePointerDown(id: number, x: number, y: number): void {
+    // Check bubbles first (non-consuming)
+    const bubbleHit = this.surprise.bubbleHitTest(x, y);
+    if (bubbleHit) {
+      this.audio.playBubbleBloop();
+    }
+
     const b = this.findBalloon(x, y);
     if (b) {
-      b.dragged = true;
-      this.drags.set(id, { balloon: b, startX: x, startY: y, moved: false });
+      // Finale balloon: check tap delay
+      if (b.isFinale && this.elapsed - this.finaleSpawnTime < FINALE_TAP_DELAY) {
+        return;
+      }
+
+      if (b.isDraggable) {
+        b.dragged = true;
+        this.drags.set(id, { balloon: b, startX: x, startY: y, moved: false });
+      } else {
+        // Special/finale balloons: tap immediately
+        this.tapBalloon(b);
+
+        // Handle finale balloon pop
+        if (b.isFinale) {
+          this.startFinaleCelebration(b);
+        }
+      }
     }
   }
 
@@ -167,6 +279,129 @@ export class Game {
     }
     this.drags.delete(id);
   }
+
+  // ── Sound helpers ─────────────────────────────────────────────────────────
+
+  private playSurpriseSound(type: SurpriseEventType): void {
+    const event = this.surprise.getActiveEvent();
+    switch (type) {
+      case 'rainbow': this.audio.playRainbowWhoosh(); break;
+      case 'confetti': this.audio.playConfettiPatter(); break;
+      case 'starburst': this.audio.playStarSparkle(); break;
+      case 'silly':
+        if (event?.sillySound) {
+          switch (event.sillySound) {
+            case 'quack': this.audio.playQuack(); break;
+            case 'boing': this.audio.playBoing(); break;
+            case 'slideWhistle': this.audio.playSlideWhistle(); break;
+            case 'giggle': this.audio.playGiggle(); break;
+          }
+        }
+        break;
+    }
+  }
+
+  private playSpecialPopSound(b: Balloon): void {
+    switch (b.specialType) {
+      case 'star': this.audio.playStarChime(); break;
+      case 'animal-cat': this.audio.playMeow(); break;
+      case 'animal-frog': this.audio.playRibbit(); break;
+      case 'animal-bird': this.audio.playTweet(); break;
+      case 'rainbow': this.audio.playRainbowHarp(); break;
+    }
+  }
+
+  // ── Finale logic ──────────────────────────────────────────────────────────
+
+  private enterFinale(): void {
+    this.finaleState = 'waiting';
+    this.finaleTimer = 0;
+    // Force-release all drags
+    for (const [id, drag] of this.drags) {
+      drag.balloon.dragged = false;
+    }
+    this.drags.clear();
+  }
+
+  private updateFinale(dt: number): void {
+    this.finaleTimer += dt;
+
+    switch (this.finaleState) {
+      case 'waiting':
+        if (this.balloons.length === 0 || this.finaleTimer >= FINALE_WAIT_TIMEOUT) {
+          this.balloons = [];
+          this.spawnFinaleBalloon();
+          this.finaleState = 'balloon';
+        }
+        break;
+      case 'balloon':
+        // Waiting for player to pop — handled in handlePointerDown
+        break;
+      case 'celebrating':
+        if (this.finaleTimer >= FINALE_CELEBRATION_DURATION) {
+          this.finaleState = 'fading';
+          this.finaleTimer = 0;
+        }
+        break;
+      case 'fading':
+        if (this.finaleTimer >= FINALE_FADE_DURATION) {
+          this.finaleState = 'done';
+          this.showPlayAgain();
+        }
+        break;
+    }
+  }
+
+  private spawnFinaleBalloon(): void {
+    const b = Balloon.createFinale(this.width, this.height);
+    this.balloons.push(b);
+    this.finaleSpawnTime = this.elapsed;
+  }
+
+  private startFinaleCelebration(b: Balloon): void {
+    this.lastPopX = b.x;
+    this.lastPopY = b.y;
+    this.audio.playFinaleCelebration();
+    this.surprise.forceFinaleEvents(b.x, b.y);
+    this.finaleState = 'celebrating';
+    this.finaleTimer = 0;
+  }
+
+  // ── Play again / reset ────────────────────────────────────────────────────
+
+  private showPlayAgain(): void {
+    this.running = false;
+    cancelAnimationFrame(this.rafId);
+    const playAgainScreen = document.getElementById('play-again-screen');
+    if (playAgainScreen) {
+      playAgainScreen.classList.remove('hidden');
+    }
+  }
+
+  reset(): void {
+    this.balloons = [];
+    this.elapsed = 0;
+    this.spawnTimer = 0;
+    this.previousPhase = 1;
+    this.finaleState = 'none';
+    this.finaleTimer = 0;
+    this.finaleSpawnTime = 0;
+    this.lastPopX = 0;
+    this.lastPopY = 0;
+    this.surprise.reset();
+    this.surprise.setScreenSize(this.width, this.height);
+    this.session.reset();
+    for (const [, drag] of this.drags) {
+      drag.balloon.dragged = false;
+    }
+    this.drags.clear();
+
+    this.running = true;
+    this.lastTime = performance.now();
+    this.rafId = requestAnimationFrame(this.loop);
+  }
+
+  // ── Event binding ─────────────────────────────────────────────────────────
 
   private bindEvents(): void {
     // Touch events
@@ -239,5 +474,6 @@ export class Game {
     this.height = window.innerHeight;
     this.canvas.width = this.width * this.dpr;
     this.canvas.height = this.height * this.dpr;
+    this.surprise.setScreenSize(this.width, this.height);
   }
 }
