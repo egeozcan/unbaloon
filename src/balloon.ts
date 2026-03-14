@@ -17,9 +17,19 @@ import {
   PARTICLE_GRAVITY,
   PARTICLE_LIFETIME,
   PARTICLE_SIZE,
+  SPECIAL_SPEED_MULTIPLIER,
+  SPECIAL_RAINBOW_SIZE_MULTIPLIER,
+  FINALE_BALLOON_SIZE_MULTIPLIER,
+  FINALE_BALLOON_SPEED,
+  SPECIAL_STAR_COLOR,
+  SPECIAL_CAT_COLOR,
+  SPECIAL_FROG_COLOR,
+  SPECIAL_BIRD_COLOR,
 } from './constants';
 
 export type BalloonState = 'floating' | 'squeezing' | 'popping' | 'dead';
+
+export type SpecialType = 'star' | 'animal-cat' | 'animal-frog' | 'animal-bird' | 'rainbow';
 
 export interface Particle {
   x: number;
@@ -44,6 +54,12 @@ export class Balloon {
   // Dragging
   dragged: boolean = false;
 
+  // Special type / finale
+  specialType?: SpecialType;
+  isFinale: boolean = false;
+  animTime: number = 0;
+  private screenHeight: number = 0;
+
   // Movement
   baseX: number;
   private speed: number;
@@ -59,8 +75,8 @@ export class Balloon {
   popProgress: number = 0;
   particles: Particle[] = [];
 
-  constructor(screenWidth: number, screenHeight: number) {
-    this.radiusX = (screenWidth * BALLOON_WIDTH_RATIO) / 2;
+  constructor(screenWidth: number, screenHeight: number, speedMultiplier: number = 1, sizeMultiplier: number = 1) {
+    this.radiusX = (screenWidth * BALLOON_WIDTH_RATIO * sizeMultiplier) / 2;
     this.radiusY = this.radiusX * BALLOON_ASPECT;
 
     // Random horizontal position, keeping balloon fully on screen
@@ -72,17 +88,51 @@ export class Balloon {
     this.y = screenHeight + this.radiusY;
 
     // Random float speed
-    this.speed = FLOAT_SPEED_MIN + Math.random() * (FLOAT_SPEED_MAX - FLOAT_SPEED_MIN);
+    this.speed = (FLOAT_SPEED_MIN + Math.random() * (FLOAT_SPEED_MAX - FLOAT_SPEED_MIN)) * speedMultiplier;
 
     // Random sway phase offset
     this.swayOffset = Math.random() * Math.PI * 2;
 
     // Number will be set externally
     this.number = 1;
+
+    this.screenHeight = screenHeight;
+  }
+
+  static createSpecial(screenWidth: number, screenHeight: number, type: SpecialType): Balloon {
+    const speedMul = SPECIAL_SPEED_MULTIPLIER;
+    const sizeMul = type === 'rainbow' ? SPECIAL_RAINBOW_SIZE_MULTIPLIER : 1;
+    const b = new Balloon(screenWidth, screenHeight, speedMul, sizeMul);
+    b.specialType = type;
+    b.number = 1;
+    return b;
+  }
+
+  static createFinale(screenWidth: number, screenHeight: number): Balloon {
+    const b = new Balloon(screenWidth, screenHeight, 1, FINALE_BALLOON_SIZE_MULTIPLIER);
+    b.isFinale = true;
+    b.number = 1;
+    b.x = screenWidth / 2;
+    b.baseX = screenWidth / 2;
+    b.speed = FINALE_BALLOON_SPEED;
+    return b;
   }
 
   get color(): string {
+    if (this.specialType) {
+      switch (this.specialType) {
+        case 'star': return SPECIAL_STAR_COLOR;
+        case 'animal-cat': return SPECIAL_CAT_COLOR;
+        case 'animal-frog': return SPECIAL_FROG_COLOR;
+        case 'animal-bird': return SPECIAL_BIRD_COLOR;
+        case 'rainbow': return '#FF4444';
+      }
+    }
     return BALLOON_COLORS[this.number] || BALLOON_COLORS[1];
+  }
+
+  get isDraggable(): boolean {
+    return !this.specialType && !this.isFinale;
   }
 
   hitTest(px: number, py: number): boolean {
@@ -112,16 +162,20 @@ export class Balloon {
   private spawnParticles(): void {
     const count = PARTICLE_COUNT_MIN +
       Math.floor(Math.random() * (PARTICLE_COUNT_MAX - PARTICLE_COUNT_MIN + 1));
+    const rainbowColors = ['#FF4444', '#FF8800', '#FFD700', '#44BB44', '#4488FF', '#AA44FF'];
     for (let i = 0; i < count; i++) {
       const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
       const speed = PARTICLE_SPEED * (0.6 + Math.random() * 0.4);
+      const color = this.specialType === 'rainbow' || this.isFinale
+        ? rainbowColors[i % rainbowColors.length]
+        : this.color;
       this.particles.push({
         x: this.x,
         y: this.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         age: 0,
-        color: this.color,
+        color,
         radius: PARTICLE_SIZE * (0.7 + Math.random() * 0.6),
       });
     }
@@ -143,12 +197,17 @@ export class Balloon {
 
   private updateFloating(dt: number): void {
     if (!this.dragged) {
-      this.y -= this.speed * dt;
+      if (this.isFinale && this.y <= this.screenHeight / 2) {
+        this.y = this.screenHeight / 2;
+      } else {
+        this.y -= this.speed * dt;
+      }
       this.swayTime += dt;
       this.x = this.baseX + Math.sin(this.swayTime * SWAY_FREQUENCY * Math.PI * 2 + this.swayOffset) * SWAY_AMPLITUDE;
     }
     this.scaleX = 1;
     this.scaleY = 1;
+    this.animTime += dt;
   }
 
   private updateSqueeze(dt: number): void {
