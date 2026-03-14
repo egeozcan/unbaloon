@@ -19,58 +19,50 @@ export class AudioManager {
     const gain = ctx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.setValueAtTime(400, now);
 
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
 
     osc.connect(gain);
     gain.connect(ctx.destination);
 
     osc.start(now);
-    osc.stop(now + 0.08);
+    osc.stop(now + 0.06);
   }
 
   playPop(): void {
     const ctx = this.ensureContext();
     const now = ctx.currentTime;
 
-    // Descending frequency sweep
-    const osc = ctx.createOscillator();
-    const oscGain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, now);
-    osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
-
-    oscGain.gain.setValueAtTime(0.4, now);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-
-    osc.connect(oscGain);
-    oscGain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.15);
-
-    // White noise burst overlay
-    const bufferSize = ctx.sampleRate * 0.1;
+    // Layer 1: White noise burst
+    const bufferSize = Math.ceil(ctx.sampleRate * 0.03);
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * 0.5;
+      data[i] = (Math.random() * 2 - 1);
     }
-
     const noise = ctx.createBufferSource();
     const noiseGain = ctx.createGain();
-
     noise.buffer = buffer;
-    noiseGain.gain.setValueAtTime(0.3, now);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-
+    noiseGain.gain.setValueAtTime(0.25, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
     noise.connect(noiseGain);
     noiseGain.connect(ctx.destination);
-
     noise.start(now);
-    noise.stop(now + 0.1);
+    noise.stop(now + 0.03);
+
+    // Layer 2: Mid-frequency thump
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(150, now + 0.02);
+    oscGain.gain.setValueAtTime(0.2, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.02);
   }
 }
