@@ -3,6 +3,7 @@ import { Renderer } from './renderer';
 import { AudioManager } from './audio';
 import { SessionManager, Phase } from './session';
 import { SurpriseManager, SurpriseEventType } from './surprise';
+import { HelicopterManager } from './helicopter';
 import {
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
@@ -37,6 +38,7 @@ export class Game {
   // Session and surprise systems
   private session: SessionManager;
   private surprise: SurpriseManager;
+  private helicopter: HelicopterManager;
   private previousPhase: Phase = 1;
 
   // Surprise counter
@@ -55,6 +57,7 @@ export class Game {
     this.audio = new AudioManager();
     this.session = new SessionManager();
     this.surprise = new SurpriseManager();
+    this.helicopter = new HelicopterManager();
   }
 
   start(): void {
@@ -114,6 +117,14 @@ export class Game {
     // Remove off-screen and dead balloons
     this.balloons = this.balloons.filter(b => !b.isOffScreen() && !b.isDead());
 
+    // Update helicopter: darts auto-target balloons and tap them (decrement, pop at 1)
+    this.helicopter.update(
+      dt,
+      this.balloons,
+      (b) => this.tapBalloon(b),
+      () => this.audio.playDartShoot(),
+    );
+
     // Update surprise events
     this.surprise.update(dt);
 
@@ -144,6 +155,10 @@ export class Game {
       this.renderer.drawBalloon(b);
     }
 
+    // Darts and helicopter ride above the balloons
+    this.renderer.drawDarts(this.helicopter.darts);
+    this.renderer.drawHelicopter(this.helicopter);
+
     // Surprise events above balloons (bubbles)
     if (event) {
       this.renderer.drawSurpriseEventAbove(event);
@@ -152,6 +167,12 @@ export class Game {
     // Finale celebration events (multiple simultaneous)
     for (const fe of this.surprise.getFinaleEvents()) {
       this.renderer.drawSurpriseEventBelow(fe, this.width, this.height);
+    }
+
+    // Helicopter spawn button (UI) — hidden while the helicopter is out
+    // and during the finale (when spawning is disabled)
+    if (this.finaleState === 'none') {
+      this.renderer.drawHelicopterButton(this.helicopter);
     }
 
     // Finale fade overlay
@@ -196,11 +217,14 @@ export class Game {
   private static DRAG_THRESHOLD = 10; // px before a touch counts as drag vs tap
 
   private tapBalloon(b: Balloon): void {
-    this.lastPopX = b.x;
-    this.lastPopY = b.y;
-
     const isSpecial = b.specialType !== undefined;
     const result = b.tap();
+
+    // Balloon was already popping/dead (e.g. dart-popped mid-drag) — do nothing.
+    if (result === 'ignored') return;
+
+    this.lastPopX = b.x;
+    this.lastPopY = b.y;
 
     // Increment surprise counter
     const increment = isSpecial ? SPECIAL_SURPRISE_INCREMENT : 1;
@@ -227,6 +251,17 @@ export class Game {
   }
 
   private handlePointerDown(id: number, x: number, y: number): void {
+    // Helicopter interactions take priority (never during the finale)
+    if (this.finaleState === 'none') {
+      if (this.helicopter.trySpawn(x, y)) {
+        this.audio.playHelicopterSpawn();
+        return;
+      }
+      if (this.helicopter.tryGrab(id, x, y)) {
+        return;
+      }
+    }
+
     // Check bubbles first (non-consuming)
     const bubbleHit = this.surprise.bubbleHitTest(x, y);
     if (bubbleHit) {
@@ -256,6 +291,8 @@ export class Game {
   }
 
   private handlePointerMove(id: number, x: number, y: number): void {
+    if (this.helicopter.drag(id, x, y)) return;
+
     const drag = this.drags.get(id);
     if (!drag) return;
     const dx = x - drag.startX;
@@ -271,6 +308,8 @@ export class Game {
   }
 
   private handlePointerUp(id: number): void {
+    if (this.helicopter.release(id)) return;
+
     const drag = this.drags.get(id);
     if (!drag) return;
     drag.balloon.dragged = false;
@@ -317,10 +356,12 @@ export class Game {
     this.finaleState = 'waiting';
     this.finaleTimer = 0;
     // Force-release all drags
-    for (const [id, drag] of this.drags) {
+    for (const [, drag] of this.drags) {
       drag.balloon.dragged = false;
     }
     this.drags.clear();
+    // Remove the helicopter (and its darts) for the finale
+    this.helicopter.clear();
   }
 
   private updateFinale(dt: number): void {
@@ -390,6 +431,8 @@ export class Game {
     this.lastPopY = 0;
     this.surprise.reset();
     this.surprise.setScreenSize(this.width, this.height);
+    this.helicopter.reset();
+    this.helicopter.setScreenSize(this.width, this.height);
     this.session.reset();
     for (const [, drag] of this.drags) {
       drag.balloon.dragged = false;
@@ -460,6 +503,7 @@ export class Game {
           drag.balloon.dragged = false;
           this.drags.delete(id);
         }
+        this.helicopter.releaseAll();
       } else {
         this.running = true;
         this.lastTime = performance.now();
@@ -475,5 +519,6 @@ export class Game {
     this.canvas.width = this.width * this.dpr;
     this.canvas.height = this.height * this.dpr;
     this.surprise.setScreenSize(this.width, this.height);
+    this.helicopter.setScreenSize(this.width, this.height);
   }
 }

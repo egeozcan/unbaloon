@@ -17,7 +17,7 @@ export const BALLOON_HIGHLIGHTS: Record<number, string> = {
 };
 
 // Balloon sizing (relative to screen width)
-export const BALLOON_WIDTH_RATIO = 0.17;
+export const BALLOON_WIDTH_RATIO = 0.14;
 export const BALLOON_ASPECT = 1.25; // height = width * aspect
 
 // Movement
@@ -118,3 +118,43 @@ export const SPECIAL_BIRD_COLOR = '#88BBFF';
 // Finale celebration
 export const FINALE_CELEBRATION_DURATION = 3.0; // seconds
 export const FINALE_FADE_DURATION = 1.0; // seconds for screen fade after celebration
+
+// ── Helicopter ───────────────────────────────────────────────────────────────
+export const HELICOPTER_LIFETIME = 30;   // seconds the helicopter stays out
+export const HELICOPTER_COOLDOWN = 30;   // seconds before it can be spawned again
+export const HELICOPTER_SIZE_RATIO = 0.2; // full width (incl. rotor) relative to screen width
+export const HELICOPTER_MIN_SIZE = 80;    // CSS px floor so it stays visible/grabbable
+export const HELICOPTER_FADE_DURATION = 1.2; // seconds it fades out at end of life
+export const HELICOPTER_BOB_AMPLITUDE = 6;   // CSS px gentle hover bob
+export const HELICOPTER_BOB_FREQUENCY = 0.9; // Hz
+export const HELICOPTER_ROTOR_SPEED = 32;    // rad/s (visual spin)
+export const HELICOPTER_GRAB_RADIUS_RATIO = 0.45; // grab hit radius relative to size
+
+export const HELICOPTER_BODY_COLOR = '#3A6EA5';
+export const HELICOPTER_WINDOW_COLOR = '#BFE3FF';
+export const HELICOPTER_ROTOR_COLOR = '#2A2F38';
+export const HELICOPTER_SKID_COLOR = '#2A2F38';
+
+// Spawn button (left edge)
+export const HELI_BUTTON_MARGIN = 16;          // CSS px from left edge
+export const HELI_BUTTON_RADIUS_RATIO = 0.07;  // relative to min(width, height)
+export const HELI_BUTTON_MIN_RADIUS = 30;      // CSS px floor
+export const HELI_BUTTON_MAX_RADIUS = 52;      // CSS px cap
+
+// ── Darts ────────────────────────────────────────────────────────────────────
+export const DART_FIRE_INTERVAL = 0.45; // seconds between shots
+export const DART_SPEED = 450;          // CSS px/s (projectile speed)
+export const DART_LENGTH = 16;          // CSS px (visual)
+export const DART_WIDTH = 4;            // CSS px (visual)
+export const DART_LIFETIME = 2.5;       // seconds — hard backstop cull
+export const DART_COLOR = '#333A44';
+export const DART_TIP_COLOR = '#FF5A3C';
+export const DART_MUZZLE_OFFSET_RATIO = 0.2; // fire from this far in front of heli center
+
+// Effective reach: the helicopter only targets/hits balloons within this radius,
+// and darts fizzle out once they have travelled this far.
+export const DART_RANGE_RATIO = 0.5;  // of min(screen width, height)
+export const DART_RANGE_MIN = 220;    // CSS px floor
+export const DART_RANGE_MAX = 420;    // CSS px cap
+// Aim is imperfect: each shot deviates by up to ±this many radians (~7.5°).
+export const DART_SPREAD = 0.13;

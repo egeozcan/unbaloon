@@ -9,12 +9,20 @@ import {
   RAINBOW_DURATION,
   STARBURST_DURATION,
   CONFETTI_DURATION,
-  BUBBLE_DURATION,
   CONFETTI_WIDTH,
   CONFETTI_HEIGHT,
+  DART_LENGTH,
+  DART_WIDTH,
+  DART_COLOR,
+  DART_TIP_COLOR,
+  HELICOPTER_BODY_COLOR,
+  HELICOPTER_WINDOW_COLOR,
+  HELICOPTER_ROTOR_COLOR,
+  HELICOPTER_SKID_COLOR,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
-import type { ActiveEvent, Bubble, ConfettiPiece, StarBurstStar } from './surprise';
+import type { ActiveEvent, Bubble } from './surprise';
+import type { Dart, HelicopterManager } from './helicopter';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -460,6 +468,198 @@ export class Renderer {
       ctx.arc(b.x - b.radius * 0.25, b.y - b.radius * 0.25, b.radius * 0.2, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // ── Helicopter, darts, spawn button ────────────────────────────────────────
+
+  drawDarts(darts: Dart[]): void {
+    const ctx = this.ctx;
+    for (const d of darts) {
+      const len = Math.hypot(d.vx, d.vy) || 1;
+      const ux = d.vx / len;
+      const uy = d.vy / len;
+      const angle = Math.atan2(uy, ux);
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.rotate(angle);
+      // Shaft
+      ctx.strokeStyle = DART_COLOR;
+      ctx.lineWidth = DART_WIDTH;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-DART_LENGTH, 0);
+      ctx.lineTo(DART_LENGTH * 0.4, 0);
+      ctx.stroke();
+      // Pointed tip
+      ctx.fillStyle = DART_TIP_COLOR;
+      ctx.beginPath();
+      ctx.moveTo(DART_LENGTH, 0);
+      ctx.lineTo(DART_LENGTH * 0.4, -DART_WIDTH);
+      ctx.lineTo(DART_LENGTH * 0.4, DART_WIDTH);
+      ctx.closePath();
+      ctx.fill();
+      // Tail fletching
+      ctx.fillStyle = DART_COLOR;
+      ctx.beginPath();
+      ctx.moveTo(-DART_LENGTH, 0);
+      ctx.lineTo(-DART_LENGTH - DART_WIDTH, -DART_WIDTH);
+      ctx.lineTo(-DART_LENGTH + DART_WIDTH, 0);
+      ctx.lineTo(-DART_LENGTH - DART_WIDTH, DART_WIDTH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  drawHelicopter(heli: HelicopterManager): void {
+    this.drawHelicopterShape(heli.x, heli.displayY, heli.size, heli.rotorAngle, heli.alpha);
+  }
+
+  // Side-view helicopter: nose to the right, tail to the left.
+  private drawHelicopterShape(cx: number, cy: number, size: number, rotorAngle: number, alpha: number): void {
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    const s = size;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+
+    // Tail boom
+    ctx.fillStyle = HELICOPTER_BODY_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.08, -s * 0.07);
+    ctx.lineTo(-s * 0.46, -s * 0.03);
+    ctx.lineTo(-s * 0.46, s * 0.04);
+    ctx.lineTo(-s * 0.08, s * 0.09);
+    ctx.closePath();
+    ctx.fill();
+
+    // Tail fin (vertical stabiliser)
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.4, -s * 0.02);
+    ctx.lineTo(-s * 0.5, -s * 0.15);
+    ctx.lineTo(-s * 0.42, s * 0.04);
+    ctx.closePath();
+    ctx.fill();
+
+    // Skids
+    ctx.strokeStyle = HELICOPTER_SKID_COLOR;
+    ctx.lineWidth = Math.max(2, s * 0.025);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.16, s * 0.3);
+    ctx.lineTo(s * 0.24, s * 0.3);
+    ctx.moveTo(-s * 0.06, s * 0.18);
+    ctx.lineTo(-s * 0.09, s * 0.3);
+    ctx.moveTo(s * 0.14, s * 0.18);
+    ctx.lineTo(s * 0.16, s * 0.3);
+    ctx.stroke();
+
+    // Cabin body
+    ctx.beginPath();
+    ctx.ellipse(s * 0.05, 0, s * 0.27, s * 0.2, 0, 0, Math.PI * 2);
+    ctx.fillStyle = HELICOPTER_BODY_COLOR;
+    ctx.fill();
+
+    // Cockpit window
+    ctx.beginPath();
+    ctx.ellipse(s * 0.15, -s * 0.01, s * 0.1, s * 0.1, 0, 0, Math.PI * 2);
+    ctx.fillStyle = HELICOPTER_WINDOW_COLOR;
+    ctx.fill();
+
+    // Mast
+    ctx.strokeStyle = HELICOPTER_ROTOR_COLOR;
+    ctx.lineWidth = Math.max(2, s * 0.03);
+    ctx.beginPath();
+    ctx.moveTo(s * 0.05, -s * 0.18);
+    ctx.lineTo(s * 0.05, -s * 0.26);
+    ctx.stroke();
+
+    // Main rotor (edge-on bar) with spinning shimmer + slight wobble
+    const rotorSpan = s * 0.5;
+    const wob = Math.sin(rotorAngle) * s * 0.012;
+    ctx.save();
+    ctx.translate(s * 0.05, -s * 0.27 + wob);
+    ctx.globalAlpha = alpha * 0.22;
+    ctx.fillStyle = HELICOPTER_ROTOR_COLOR;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rotorSpan, s * 0.022, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = alpha;
+    ctx.fillRect(-rotorSpan, -s * 0.012, rotorSpan * 2, s * 0.024);
+    ctx.globalAlpha = alpha * 0.7;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.ellipse(Math.cos(rotorAngle) * rotorSpan * 0.75, 0, s * 0.05, s * 0.02, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Tail rotor (spinning disc, seen face-on from the side)
+    ctx.save();
+    ctx.translate(-s * 0.47, s * 0.0);
+    ctx.globalAlpha = alpha * 0.25;
+    ctx.fillStyle = HELICOPTER_ROTOR_COLOR;
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = HELICOPTER_ROTOR_COLOR;
+    ctx.lineWidth = Math.max(1.5, s * 0.02);
+    ctx.beginPath();
+    ctx.moveTo(-Math.cos(rotorAngle) * s * 0.08, -Math.sin(rotorAngle) * s * 0.08);
+    ctx.lineTo(Math.cos(rotorAngle) * s * 0.08, Math.sin(rotorAngle) * s * 0.08);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  drawHelicopterButton(heli: HelicopterManager): void {
+    if (heli.isActive) return; // helicopter is out — no button
+    const ctx = this.ctx;
+    const cx = heli.buttonX;
+    const cy = heli.buttonY;
+    const r = heli.buttonRadius;
+    const available = heli.isAvailable;
+
+    // Invite-to-tap pulse glow when available
+    if (available) {
+      const pulse = heli.buttonPulse;
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.35 * pulse;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.1 + 0.12 * pulse), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Button disc
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = available ? 'rgba(255, 255, 255, 0.9)' : 'rgba(214, 222, 230, 0.75)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.strokeStyle = available ? HELICOPTER_BODY_COLOR : 'rgba(120, 140, 160, 0.8)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Helicopter icon inside (dimmed during cooldown)
+    this.drawHelicopterShape(cx, cy + r * 0.05, r * 1.4, heli.rotorAngle, available ? 1 : 0.4);
+
+    // Cooldown loading ring
+    if (!available) {
+      const progress = heli.cooldownProgress;
+      ctx.save();
+      ctx.lineWidth = Math.max(3, r * 0.12);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = HELICOPTER_BODY_COLOR;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
       ctx.restore();
     }
   }

@@ -353,4 +353,52 @@ export class AudioManager {
     this.playRainbowWhoosh();
     this.playConfettiPatter();
   }
+
+  // ── Helicopter sounds ──────────────────────────────────────────────────────
+
+  // Quiet little "pew" for each dart so rapid fire doesn't get grating.
+  playDartShoot(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(900, now);
+    osc.frequency.exponentialRampToValueAtTime(300, now + 0.08);
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  }
+
+  // Rising whir as the helicopter spins up.
+  playHelicopterSpawn(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(60, now);
+    osc.frequency.linearRampToValueAtTime(120, now + 0.5);
+    // Tremolo to suggest rotor chop.
+    lfo.type = 'square';
+    lfo.frequency.setValueAtTime(8, now);
+    lfo.frequency.linearRampToValueAtTime(16, now + 0.5);
+    lfoGain.gain.value = 0.06;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.1, now + 0.15);
+    gain.gain.linearRampToValueAtTime(0, now + 0.6);
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    lfo.start(now);
+    osc.stop(now + 0.6);
+    lfo.stop(now + 0.6);
+  }
 }

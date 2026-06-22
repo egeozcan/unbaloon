@@ -9,7 +9,6 @@ import {
   SQUEEZE_SCALE_X,
   SQUEEZE_SCALE_Y,
   SQUEEZE_DURATION,
-  POP_EXPAND_SCALE,
   POP_DURATION,
   PARTICLE_COUNT_MIN,
   PARTICLE_COUNT_MAX,
@@ -143,7 +142,10 @@ export class Balloon {
     return dx * dx + dy * dy <= 1;
   }
 
-  tap(): 'decremented' | 'popped' {
+  tap(): 'decremented' | 'popped' | 'ignored' {
+    // Ignore taps on balloons that are already popping or dead (e.g. a balloon a
+    // dart popped while it was still being dragged).
+    if (this.state !== 'floating' && this.state !== 'squeezing') return 'ignored';
     if (this.number > 1) {
       this.number--;
       // Trigger squeeze animation
