@@ -4,6 +4,7 @@ import { AudioManager } from './audio';
 import { SessionManager, Phase } from './session';
 import { SurpriseManager, SurpriseEventType } from './surprise';
 import { HelicopterManager } from './helicopter';
+import { PlaneManager } from './plane';
 import {
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
@@ -13,6 +14,7 @@ import {
   FINALE_TAP_DELAY,
   FINALE_CELEBRATION_DURATION,
   FINALE_FADE_DURATION,
+  MISSILE_DAMAGE,
 } from './constants';
 
 export class Game {
@@ -39,11 +41,16 @@ export class Game {
   private session: SessionManager;
   private surprise: SurpriseManager;
   private helicopter: HelicopterManager;
+  private plane: PlaneManager;
   private previousPhase: Phase = 1;
 
   // Surprise counter
   private lastPopX: number = 0;
   private lastPopY: number = 0;
+
+  // Focus point the plane strafes around: cursor on desktop, last tap on touch.
+  private focusX: number = 0;
+  private focusY: number = 0;
 
   // Finale state
   private finaleState: 'none' | 'waiting' | 'balloon' | 'celebrating' | 'fading' | 'done' = 'none';
@@ -58,11 +65,14 @@ export class Game {
     this.session = new SessionManager();
     this.surprise = new SurpriseManager();
     this.helicopter = new HelicopterManager();
+    this.plane = new PlaneManager();
   }
 
   start(): void {
     this.handleResize();
     this.surprise.setScreenSize(this.width, this.height);
+    this.focusX = this.width / 2;
+    this.focusY = this.height / 2;
     this.bindEvents();
     this.running = true;
     this.lastTime = performance.now();
@@ -125,6 +135,17 @@ export class Game {
       () => this.audio.playDartShoot(),
     );
 
+    // Update plane: strafes around the focus point firing homing missiles that
+    // destroy two balloon layers per hit.
+    this.plane.update(
+      dt,
+      this.focusX,
+      this.focusY,
+      this.balloons,
+      (b) => this.missileHit(b),
+      () => this.audio.playMissileLaunch(),
+    );
+
     // Update surprise events
     this.surprise.update(dt);
 
@@ -159,6 +180,10 @@ export class Game {
     this.renderer.drawDarts(this.helicopter.darts);
     this.renderer.drawHelicopter(this.helicopter);
 
+    // Missiles and plane ride above the balloons too
+    this.renderer.drawMissiles(this.plane.missiles);
+    this.renderer.drawPlane(this.plane);
+
     // Surprise events above balloons (bubbles)
     if (event) {
       this.renderer.drawSurpriseEventAbove(event);
@@ -169,10 +194,11 @@ export class Game {
       this.renderer.drawSurpriseEventBelow(fe, this.width, this.height);
     }
 
-    // Helicopter spawn button (UI) — hidden while the helicopter is out
-    // and during the finale (when spawning is disabled)
+    // Spawn buttons (UI) — hidden while their vehicle is out and during the
+    // finale (when spawning is disabled). The plane button stacks below the heli.
     if (this.finaleState === 'none') {
       this.renderer.drawHelicopterButton(this.helicopter);
+      this.renderer.drawPlaneButton(this.plane);
     }
 
     // Finale fade overlay
@@ -243,6 +269,15 @@ export class Game {
     }
   }
 
+  // A homing missile destroys MISSILE_DAMAGE layers at once (e.g. a 4 → 2).
+  // Reuses tapBalloon so surprise counting, sounds and vibration stay consistent;
+  // once the balloon is popping the extra taps are harmlessly ignored.
+  private missileHit(b: Balloon): void {
+    for (let i = 0; i < MISSILE_DAMAGE; i++) {
+      this.tapBalloon(b);
+    }
+  }
+
   private findBalloon(x: number, y: number): Balloon | null {
     for (let i = this.balloons.length - 1; i >= 0; i--) {
       if (this.balloons[i].hitTest(x, y)) return this.balloons[i];
@@ -251,16 +286,24 @@ export class Game {
   }
 
   private handlePointerDown(id: number, x: number, y: number): void {
-    // Helicopter interactions take priority (never during the finale)
+    // Vehicle spawn buttons / dragging take priority (never during the finale)
     if (this.finaleState === 'none') {
       if (this.helicopter.trySpawn(x, y)) {
         this.audio.playHelicopterSpawn();
+        return;
+      }
+      if (this.plane.trySpawn(x, y)) {
+        this.audio.playPlaneSpawn();
         return;
       }
       if (this.helicopter.tryGrab(id, x, y)) {
         return;
       }
     }
+
+    // A tap in the play area becomes the plane's focus point.
+    this.focusX = x;
+    this.focusY = y;
 
     // Check bubbles first (non-consuming)
     const bubbleHit = this.surprise.bubbleHitTest(x, y);
@@ -291,6 +334,14 @@ export class Game {
   }
 
   private handlePointerMove(id: number, x: number, y: number): void {
+    // Desktop: the plane's focus follows the cursor continuously (mouse uses id
+    // -1). Touch keeps the focus at the last tap (set in handlePointerDown), so
+    // dragging a balloon or the helicopter doesn't drag the focus with it.
+    if (id === -1) {
+      this.focusX = x;
+      this.focusY = y;
+    }
+
     if (this.helicopter.drag(id, x, y)) return;
 
     const drag = this.drags.get(id);
@@ -360,8 +411,9 @@ export class Game {
       drag.balloon.dragged = false;
     }
     this.drags.clear();
-    // Remove the helicopter (and its darts) for the finale
+    // Remove the helicopter and plane (and their projectiles) for the finale
     this.helicopter.clear();
+    this.plane.clear();
   }
 
   private updateFinale(dt: number): void {
@@ -433,6 +485,10 @@ export class Game {
     this.surprise.setScreenSize(this.width, this.height);
     this.helicopter.reset();
     this.helicopter.setScreenSize(this.width, this.height);
+    this.plane.reset();
+    this.plane.setScreenSize(this.width, this.height);
+    this.focusX = this.width / 2;
+    this.focusY = this.height / 2;
     this.session.reset();
     for (const [, drag] of this.drags) {
       drag.balloon.dragged = false;
@@ -520,5 +576,6 @@ export class Game {
     this.canvas.height = this.height * this.dpr;
     this.surprise.setScreenSize(this.width, this.height);
     this.helicopter.setScreenSize(this.width, this.height);
+    this.plane.setScreenSize(this.width, this.height);
   }
 }

@@ -158,3 +158,54 @@ export const DART_RANGE_MIN = 220;    // CSS px floor
 export const DART_RANGE_MAX = 420;    // CSS px cap
 // Aim is imperfect: each shot deviates by up to ±this many radians (~7.5°).
 export const DART_SPREAD = 0.13;
+
+// ── Plane ──────────────────────────────────────────────────────────────────────
+export const PLANE_LIFETIME = 30;   // seconds the plane stays out
+export const PLANE_COOLDOWN = 35;   // seconds before it can be spawned again
+export const PLANE_SIZE_RATIO = 0.18; // full length (incl. wings) relative to screen width
+export const PLANE_MIN_SIZE = 70;     // CSS px floor so it stays visible
+export const PLANE_FADE_DURATION = 1.2; // seconds it fades out at end of life
+export const PLANE_SPEED = 360;       // CSS px/s — fast strafing speed
+export const PLANE_TURN_RATE = 3.4;   // rad/s — how sharply it can bank/turn around
+export const PLANE_PROP_SPEED = 42;   // rad/s (visual propeller spin)
+// Each strafing run aims at a point this far past the focus point so the plane
+// flies through and beyond it before turning around for the next pass. The
+// waypoint is clamped on-screen so the plane never disappears mid-run.
+export const PLANE_OVERSHOOT_RATIO = 0.32; // of min(screen width, height)
+export const PLANE_OVERSHOOT_MIN = 170;    // CSS px floor
+export const PLANE_OVERSHOOT_MAX = 340;    // CSS px cap
+// Each run reverses direction and rotates by this much, so successive passes
+// sweep around the focus point and attack from varied angles.
+export const PLANE_RUN_TURN_BIAS = 0.6; // radians (~34°)
+// The run ends (and reverses) once the plane gets within this distance of the
+// run's waypoint — keeping the turnaround anchored to an on-screen point.
+export const PLANE_ARRIVE_RADIUS = 44; // CSS px
+
+export const PLANE_BODY_COLOR = '#E8533A';   // cheerful red-orange
+export const PLANE_WING_COLOR = '#C2402B';
+export const PLANE_WINDOW_COLOR = '#BFE3FF';
+export const PLANE_ACCENT_COLOR = '#FFD23C'; // yellow trim stripe
+export const PLANE_PROP_COLOR = '#2A2F38';
+
+// Plane spawn button sits below the helicopter button (shares its sizing/x).
+// Gap is wide enough that the generous (1.25×) touch targets never overlap even
+// when the button radius is capped on large screens.
+export const PLANE_BUTTON_GAP = 28; // CSS px vertical gap between the two buttons
+
+// ── Missiles (plane) ───────────────────────────────────────────────────────────
+export const MISSILE_FIRE_INTERVAL = 1.3; // seconds between launches
+export const MISSILE_SPEED = 175;         // CSS px/s — slow, deliberate
+export const MISSILE_TURN_RATE = 3.2;     // rad/s — homing agility
+export const MISSILE_LIFETIME = 5.0;      // seconds — hard backstop cull
+export const MISSILE_DAMAGE = 2;          // balloon layers destroyed per hit
+export const MISSILE_LENGTH = 17;         // CSS px (visual half-length)
+export const MISSILE_WIDTH = 7;           // CSS px (visual)
+export const MISSILE_MUZZLE_OFFSET_RATIO = 0.28; // launch this far in front of plane centre
+export const MISSILE_BODY_COLOR = '#566270';
+export const MISSILE_NOSE_COLOR = '#FF5A3C';
+export const MISSILE_FIN_COLOR = '#2A2F38';
+export const MISSILE_FLAME_COLOR = '#FFB23C';
+// The plane only locks onto balloons within this radius of itself when firing.
+export const MISSILE_RANGE_RATIO = 0.7;   // of min(screen width, height) — generous
+export const MISSILE_RANGE_MIN = 320;     // CSS px floor
+export const MISSILE_RANGE_MAX = 720;     // CSS px cap

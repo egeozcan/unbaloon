@@ -401,4 +401,66 @@ export class AudioManager {
     osc.stop(now + 0.6);
     lfo.stop(now + 0.6);
   }
+
+  // ── Plane sounds ───────────────────────────────────────────────────────────
+
+  // Rising propeller-engine "vroom" as the plane takes off.
+  playPlaneSpawn(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const lowpass = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(90, now);
+    osc.frequency.linearRampToValueAtTime(190, now + 0.4);
+    osc.frequency.linearRampToValueAtTime(150, now + 0.7);
+    // Fast tremolo for the propeller chop.
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(22, now);
+    lfo.frequency.linearRampToValueAtTime(34, now + 0.6);
+    lfoGain.gain.value = 0.05;
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 1200;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.12);
+    gain.gain.linearRampToValueAtTime(0, now + 0.7);
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+    osc.connect(lowpass);
+    lowpass.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    lfo.start(now);
+    osc.stop(now + 0.7);
+    lfo.stop(now + 0.7);
+  }
+
+  // Soft filtered "fwoosh" as a homing missile launches.
+  playMissileLaunch(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    const bufferSize = Math.ceil(ctx.sampleRate * 0.25);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.Q.value = 1.2;
+    bandpass.frequency.setValueAtTime(500, now);
+    bandpass.frequency.exponentialRampToValueAtTime(1400, now + 0.22);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    noise.connect(bandpass);
+    bandpass.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.25);
+  }
 }

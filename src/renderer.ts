@@ -19,10 +19,22 @@ import {
   HELICOPTER_WINDOW_COLOR,
   HELICOPTER_ROTOR_COLOR,
   HELICOPTER_SKID_COLOR,
+  PLANE_BODY_COLOR,
+  PLANE_WING_COLOR,
+  PLANE_WINDOW_COLOR,
+  PLANE_ACCENT_COLOR,
+  PLANE_PROP_COLOR,
+  MISSILE_LENGTH,
+  MISSILE_WIDTH,
+  MISSILE_BODY_COLOR,
+  MISSILE_NOSE_COLOR,
+  MISSILE_FIN_COLOR,
+  MISSILE_FLAME_COLOR,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
 import type { ActiveEvent, Bubble } from './surprise';
 import type { Dart, HelicopterManager } from './helicopter';
+import type { Missile, PlaneManager } from './plane';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -657,6 +669,284 @@ export class Renderer {
       ctx.lineWidth = Math.max(3, r * 0.12);
       ctx.lineCap = 'round';
       ctx.strokeStyle = HELICOPTER_BODY_COLOR;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ── Plane, missiles, spawn button ──────────────────────────────────────────
+
+  drawMissiles(missiles: Missile[]): void {
+    const ctx = this.ctx;
+    for (const m of missiles) {
+      const angle = Math.atan2(m.vy, m.vx); // atan2 is scale-invariant
+      const L = MISSILE_LENGTH;
+      const W = MISSILE_WIDTH;
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      ctx.rotate(angle);
+
+      // Exhaust flame trailing behind, flickering with age.
+      const flick = 0.6 + 0.4 * Math.sin(m.age * 40);
+      ctx.fillStyle = MISSILE_FLAME_COLOR;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(-L * 0.7, -W * 0.32);
+      ctx.lineTo(-L * 0.7 - L * 0.7 * flick, 0);
+      ctx.lineTo(-L * 0.7, W * 0.32);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Body (rounded capsule).
+      ctx.fillStyle = MISSILE_BODY_COLOR;
+      ctx.beginPath();
+      ctx.moveTo(-L * 0.7, -W / 2);
+      ctx.lineTo(L * 0.45, -W / 2);
+      ctx.lineTo(L * 0.45, W / 2);
+      ctx.lineTo(-L * 0.7, W / 2);
+      ctx.closePath();
+      ctx.fill();
+      // Rounded tail cap.
+      ctx.beginPath();
+      ctx.arc(-L * 0.7, 0, W / 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Nose cone.
+      ctx.fillStyle = MISSILE_NOSE_COLOR;
+      ctx.beginPath();
+      ctx.moveTo(L * 0.45, -W / 2);
+      ctx.lineTo(L, 0);
+      ctx.lineTo(L * 0.45, W / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Tail fins.
+      ctx.fillStyle = MISSILE_FIN_COLOR;
+      ctx.beginPath();
+      ctx.moveTo(-L * 0.5, -W / 2);
+      ctx.lineTo(-L * 0.75, -W);
+      ctx.lineTo(-L * 0.4, -W / 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-L * 0.5, W / 2);
+      ctx.lineTo(-L * 0.75, W);
+      ctx.lineTo(-L * 0.4, W / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  drawPlane(plane: PlaneManager): void {
+    this.drawPlaneShape(plane.x, plane.y, plane.size, plane.heading, plane.propAngle, plane.alpha);
+  }
+
+  // Side-view plane drawn nose-to-the-right, then rotated to its heading. When it
+  // banks left we mirror vertically so it stays upright rather than belly-up.
+  private drawPlaneShape(
+    cx: number,
+    cy: number,
+    size: number,
+    heading: number,
+    propAngle: number,
+    alpha: number,
+  ): void {
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    const s = size;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.rotate(heading);
+    if (Math.cos(heading) < 0) ctx.scale(1, -1); // keep upright when facing left
+
+    const lw = Math.max(1.5, s * 0.012);
+
+    // Tail fin (vertical stabiliser): tall & swept, unmistakably the BACK.
+    ctx.fillStyle = PLANE_BODY_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.22, -s * 0.05);
+    ctx.lineTo(-s * 0.40, -s * 0.30);
+    ctx.quadraticCurveTo(-s * 0.435, -s * 0.34, -s * 0.45, -s * 0.295);
+    ctx.quadraticCurveTo(-s * 0.45, -s * 0.16, -s * 0.36, -s * 0.05);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = PLANE_ACCENT_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.395, -s * 0.255);
+    ctx.lineTo(-s * 0.435, -s * 0.295);
+    ctx.quadraticCurveTo(-s * 0.45, -s * 0.225, -s * 0.40, -s * 0.18);
+    ctx.closePath();
+    ctx.fill();
+
+    // Horizontal tailplane.
+    ctx.fillStyle = PLANE_WING_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.30, -s * 0.02);
+    ctx.lineTo(-s * 0.49, -s * 0.075);
+    ctx.quadraticCurveTo(-s * 0.52, -s * 0.05, -s * 0.49, -s * 0.02);
+    ctx.lineTo(-s * 0.32, s * 0.01);
+    ctx.closePath();
+    ctx.fill();
+
+    // Fuselage: rounded nose -> smooth taper to a slim tail (NOT an ellipse).
+    ctx.fillStyle = PLANE_BODY_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(s * 0.41, -s * 0.005);
+    ctx.quadraticCurveTo(s * 0.41, -s * 0.135, s * 0.20, -s * 0.135);
+    ctx.quadraticCurveTo(-s * 0.06, -s * 0.145, -s * 0.42, -s * 0.035);
+    ctx.quadraticCurveTo(-s * 0.47, 0, -s * 0.42, s * 0.05);
+    ctx.quadraticCurveTo(-s * 0.10, s * 0.155, s * 0.18, s * 0.15);
+    ctx.quadraticCurveTo(s * 0.41, s * 0.14, s * 0.41, -s * 0.005);
+    ctx.closePath();
+    ctx.fill();
+
+    // Belly shading for depth.
+    ctx.fillStyle = PLANE_WING_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(s * 0.36, s * 0.085);
+    ctx.quadraticCurveTo(-s * 0.06, s * 0.155, -s * 0.42, s * 0.05);
+    ctx.quadraticCurveTo(-s * 0.28, s * 0.10, -s * 0.04, s * 0.115);
+    ctx.quadraticCurveTo(s * 0.18, s * 0.115, s * 0.36, s * 0.05);
+    ctx.closePath();
+    ctx.fill();
+
+    // Main wing: a bold slab projecting down-and-back below the belly.
+    ctx.fillStyle = PLANE_WING_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(s * 0.10, s * 0.085);
+    ctx.lineTo(s * 0.02, s * 0.255);
+    ctx.lineTo(-s * 0.18, s * 0.255);
+    ctx.quadraticCurveTo(-s * 0.24, s * 0.235, -s * 0.16, s * 0.10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = PLANE_BODY_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(s * 0.10, s * 0.085);
+    ctx.lineTo(s * 0.05, s * 0.155);
+    ctx.lineTo(-s * 0.16, s * 0.135);
+    ctx.lineTo(-s * 0.16, s * 0.10);
+    ctx.closePath();
+    ctx.fill();
+
+    // Yellow accent cheat-line along the upper fuselage.
+    ctx.strokeStyle = PLANE_ACCENT_COLOR;
+    ctx.lineWidth = Math.max(2, s * 0.03);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(s * 0.31, -s * 0.04);
+    ctx.quadraticCurveTo(-s * 0.04, -s * 0.02, -s * 0.36, -s * 0.02);
+    ctx.stroke();
+
+    // Cockpit canopy: two cheerful windows on the nose shoulder.
+    ctx.fillStyle = PLANE_WINDOW_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(s * 0.06, -s * 0.10);
+    ctx.quadraticCurveTo(s * 0.20, -s * 0.155, s * 0.29, -s * 0.075);
+    ctx.lineTo(s * 0.27, -s * 0.06);
+    ctx.lineTo(s * 0.05, -s * 0.07);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = PLANE_WING_COLOR;
+    ctx.lineWidth = lw;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(s * 0.165, -s * 0.135);
+    ctx.lineTo(s * 0.155, -s * 0.065);
+    ctx.stroke();
+
+    // Fixed landing-gear hint: a single wheel on a strut under the belly.
+    ctx.strokeStyle = PLANE_PROP_COLOR;
+    ctx.lineWidth = Math.max(1.5, s * 0.022);
+    ctx.beginPath();
+    ctx.moveTo(s * 0.22, s * 0.12);
+    ctx.lineTo(s * 0.245, s * 0.215);
+    ctx.stroke();
+    ctx.fillStyle = PLANE_PROP_COLOR;
+    ctx.beginPath();
+    ctx.arc(s * 0.25, s * 0.235, s * 0.028, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Nose spinner + spinning two-blade propeller (animated via propAngle).
+    ctx.save();
+    ctx.translate(s * 0.41, 0);
+    const a0 = ctx.globalAlpha;
+    ctx.globalAlpha = a0 * 0.15;
+    ctx.fillStyle = PLANE_PROP_COLOR;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s * 0.028, s * 0.21, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = a0;
+    const blade = s * 0.215 * Math.abs(Math.cos(propAngle));
+    const tip = Math.max(s * 0.012, s * 0.024 * Math.abs(Math.cos(propAngle)));
+    ctx.fillStyle = PLANE_PROP_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.013, 0);
+    ctx.quadraticCurveTo(-tip, -blade * 0.6, 0, -blade);
+    ctx.quadraticCurveTo(tip, -blade * 0.6, s * 0.013, 0);
+    ctx.quadraticCurveTo(tip, blade * 0.6, 0, blade);
+    ctx.quadraticCurveTo(-tip, blade * 0.6, -s * 0.013, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = PLANE_ACCENT_COLOR;
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 0.05, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = PLANE_PROP_COLOR;
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 0.022, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  drawPlaneButton(plane: PlaneManager): void {
+    if (plane.isActive) return; // plane is out — no button
+    const ctx = this.ctx;
+    const cx = plane.buttonX;
+    const cy = plane.buttonY;
+    const r = plane.buttonRadius;
+    const available = plane.isAvailable;
+
+    // Invite-to-tap pulse glow when available.
+    if (available) {
+      const pulse = plane.buttonPulse;
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.35 * pulse;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.1 + 0.12 * pulse), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Button disc.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = available ? 'rgba(255, 255, 255, 0.9)' : 'rgba(214, 222, 230, 0.75)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.strokeStyle = available ? PLANE_BODY_COLOR : 'rgba(120, 140, 160, 0.8)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Plane icon inside (dimmed during cooldown), nose pointing up-right.
+    this.drawPlaneShape(cx, cy, r * 1.5, -0.35, plane.propAngle, available ? 1 : 0.4);
+
+    // Cooldown loading ring.
+    if (!available) {
+      const progress = plane.cooldownProgress;
+      ctx.save();
+      ctx.lineWidth = Math.max(3, r * 0.12);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = PLANE_BODY_COLOR;
       ctx.beginPath();
       ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
       ctx.stroke();
