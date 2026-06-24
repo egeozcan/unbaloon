@@ -30,11 +30,21 @@ import {
   MISSILE_NOSE_COLOR,
   MISSILE_FIN_COLOR,
   MISSILE_FLAME_COLOR,
+  BULLDOZER_BODY_COLOR,
+  BULLDOZER_BODY_DARK,
+  BULLDOZER_CAB_COLOR,
+  BULLDOZER_WINDOW_COLOR,
+  BULLDOZER_BLADE_COLOR,
+  BULLDOZER_BLADE_DARK,
+  BULLDOZER_TRACK_COLOR,
+  BULLDOZER_WHEEL_COLOR,
+  BULLDOZER_DETAIL_COLOR,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
 import type { ActiveEvent, Bubble } from './surprise';
 import type { Dart, HelicopterManager } from './helicopter';
 import type { Missile, PlaneManager } from './plane';
+import type { BulldozerManager } from './bulldozer';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -947,6 +957,244 @@ export class Renderer {
       ctx.lineWidth = Math.max(3, r * 0.12);
       ctx.lineCap = 'round';
       ctx.strokeStyle = PLANE_BODY_COLOR;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ── Bulldozer, spawn button ────────────────────────────────────────────────
+
+  drawBulldozer(dozer: BulldozerManager): void {
+    this.drawBulldozerShape(
+      dozer.x, dozer.y, dozer.size, dozer.heading, dozer.trackPhase, dozer.alpha, dozer.crushing,
+    );
+  }
+
+  // Build a rounded-rect path (caller fills/strokes). x,y is the top-left corner.
+  private roundedRectPath(x: number, y: number, w: number, h: number, r: number): void {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // A wheel with a hub and a few rotating spokes (trackPhase drives the spin).
+  private drawTrackWheel(wx: number, wy: number, wr: number, trackPhase: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = BULLDOZER_WHEEL_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+    ctx.fill();
+    // Spokes.
+    ctx.strokeStyle = BULLDOZER_BODY_DARK;
+    ctx.lineWidth = Math.max(1.5, wr * 0.18);
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 4; k++) {
+      const a = trackPhase + (k * Math.PI) / 2;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx + Math.cos(a) * wr * 0.82, wy + Math.sin(a) * wr * 0.82);
+      ctx.stroke();
+    }
+    // Hub.
+    ctx.fillStyle = BULLDOZER_BODY_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.32, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Side-view bulldozer drawn nose/blade-to-the-right, then rotated to its
+  // heading. When it drives left we mirror vertically so it stays upright (same
+  // trick the plane uses) rather than flipping belly-up.
+  private drawBulldozerShape(
+    cx: number,
+    cy: number,
+    size: number,
+    heading: number,
+    trackPhase: number,
+    alpha: number,
+    crushing: boolean,
+  ): void {
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    const s = size;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+    ctx.rotate(heading);
+    if (Math.cos(heading) < 0) ctx.scale(1, -1);
+
+    // ── Tracks (dark stadium frame + wheels) ──
+    const trackTop = 0.10 * s;
+    const trackBot = 0.345 * s;
+    const trackL = -0.32 * s;
+    const trackR = 0.24 * s;
+    const trackCy = (trackTop + trackBot) / 2;
+    const trackRad = (trackBot - trackTop) / 2;
+    ctx.fillStyle = BULLDOZER_TRACK_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(trackL, trackTop);
+    ctx.lineTo(trackR, trackTop);
+    ctx.arc(trackR, trackCy, trackRad, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(trackL, trackBot);
+    ctx.arc(trackL, trackCy, trackRad, Math.PI / 2, Math.PI * 1.5);
+    ctx.closePath();
+    ctx.fill();
+    // Tread lugs along the bottom (short ticks that ride with trackPhase).
+    ctx.strokeStyle = BULLDOZER_WHEEL_COLOR;
+    ctx.lineWidth = Math.max(1.5, s * 0.02);
+    ctx.lineCap = 'butt';
+    const lugSpan = trackR - trackL;
+    for (let i = 0; i < 7; i++) {
+      const frac = ((i + (trackPhase * 0.16) % 1) % 7) / 7;
+      const lx = trackL + frac * lugSpan;
+      ctx.beginPath();
+      ctx.moveTo(lx, trackBot - s * 0.01);
+      ctx.lineTo(lx, trackBot - s * 0.05);
+      ctx.stroke();
+    }
+    this.drawTrackWheel(-0.23 * s, trackCy, 0.115 * s, trackPhase);
+    this.drawTrackWheel(0.15 * s, trackCy, 0.10 * s, trackPhase);
+
+    // ── Chassis body ──
+    ctx.fillStyle = BULLDOZER_BODY_COLOR;
+    this.roundedRectPath(-0.30 * s, -0.03 * s, 0.48 * s, 0.17 * s, 0.04 * s);
+    ctx.fill();
+    // Lower shading band.
+    ctx.fillStyle = BULLDOZER_BODY_DARK;
+    this.roundedRectPath(-0.30 * s, 0.085 * s, 0.48 * s, 0.06 * s, 0.03 * s);
+    ctx.fill();
+
+    // ── Operator cab (slanted windshield) ──
+    ctx.fillStyle = BULLDOZER_CAB_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-0.27 * s, -0.03 * s);
+    ctx.lineTo(-0.27 * s, -0.20 * s);
+    ctx.lineTo(-0.20 * s, -0.235 * s);
+    ctx.lineTo(-0.075 * s, -0.235 * s);
+    ctx.lineTo(-0.055 * s, -0.03 * s);
+    ctx.closePath();
+    ctx.fill();
+    // Window.
+    ctx.fillStyle = BULLDOZER_WINDOW_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-0.235 * s, -0.055 * s);
+    ctx.lineTo(-0.235 * s, -0.175 * s);
+    ctx.lineTo(-0.185 * s, -0.205 * s);
+    ctx.lineTo(-0.095 * s, -0.205 * s);
+    ctx.lineTo(-0.08 * s, -0.055 * s);
+    ctx.closePath();
+    ctx.fill();
+    // ROPS roof post hint.
+    ctx.strokeStyle = BULLDOZER_DETAIL_COLOR;
+    ctx.lineWidth = Math.max(1.5, s * 0.018);
+    ctx.beginPath();
+    ctx.moveTo(-0.20 * s, -0.235 * s);
+    ctx.lineTo(-0.075 * s, -0.235 * s);
+    ctx.stroke();
+
+    // ── Exhaust stack ──
+    ctx.fillStyle = BULLDOZER_DETAIL_COLOR;
+    ctx.fillRect(0.055 * s, -0.205 * s, 0.035 * s, 0.18 * s);
+    ctx.fillRect(0.045 * s, -0.225 * s, 0.055 * s, 0.025 * s);
+
+    // ── Push arm + blade (front) ──
+    const jit = crushing ? Math.sin(trackPhase * 6) * s * 0.02 : 0;
+    // Arm from the chassis out to the blade.
+    ctx.strokeStyle = BULLDOZER_BLADE_DARK;
+    ctx.lineWidth = Math.max(2, s * 0.05);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0.05 * s, 0.10 * s);
+    ctx.lineTo(0.30 * s + jit, 0.18 * s);
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(jit, 0);
+    // Steel blade plate, concave toward the front (right).
+    ctx.fillStyle = BULLDOZER_BLADE_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(0.30 * s, -0.08 * s);
+    ctx.quadraticCurveTo(0.47 * s, -0.02 * s, 0.45 * s, 0.16 * s);
+    ctx.quadraticCurveTo(0.44 * s, 0.30 * s, 0.34 * s, 0.37 * s);
+    ctx.lineTo(0.28 * s, 0.35 * s);
+    ctx.quadraticCurveTo(0.355 * s, 0.16 * s, 0.30 * s, -0.08 * s);
+    ctx.closePath();
+    ctx.fill();
+    // Top rolled edge.
+    ctx.fillStyle = BULLDOZER_BLADE_DARK;
+    ctx.beginPath();
+    ctx.moveTo(0.30 * s, -0.08 * s);
+    ctx.quadraticCurveTo(0.47 * s, -0.02 * s, 0.45 * s, 0.16 * s);
+    ctx.lineTo(0.425 * s, 0.16 * s);
+    ctx.quadraticCurveTo(0.445 * s, -0.01 * s, 0.295 * s, -0.055 * s);
+    ctx.closePath();
+    ctx.fill();
+    // Cutting edge at the bottom.
+    ctx.fillStyle = BULLDOZER_BLADE_DARK;
+    ctx.beginPath();
+    ctx.moveTo(0.34 * s, 0.37 * s);
+    ctx.lineTo(0.28 * s, 0.35 * s);
+    ctx.lineTo(0.30 * s, 0.305 * s);
+    ctx.lineTo(0.365 * s, 0.325 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  drawBulldozerButton(dozer: BulldozerManager): void {
+    if (dozer.isActive) return; // bulldozer is out — no button
+    const ctx = this.ctx;
+    const cx = dozer.buttonX;
+    const cy = dozer.buttonY;
+    const r = dozer.buttonRadius;
+    const available = dozer.isAvailable;
+
+    // Invite-to-tap pulse glow when available.
+    if (available) {
+      const pulse = dozer.buttonPulse;
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.35 * pulse;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.1 + 0.12 * pulse), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Button disc.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = available ? 'rgba(255, 255, 255, 0.9)' : 'rgba(214, 222, 230, 0.75)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.strokeStyle = available ? BULLDOZER_BODY_DARK : 'rgba(120, 140, 160, 0.8)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Bulldozer icon inside (dimmed during cooldown), level and facing right.
+    this.drawBulldozerShape(cx, cy + r * 0.08, r * 1.55, 0, dozer.trackPhase, available ? 1 : 0.4, false);
+
+    // Cooldown loading ring.
+    if (!available) {
+      const progress = dozer.cooldownProgress;
+      ctx.save();
+      ctx.lineWidth = Math.max(3, r * 0.12);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = BULLDOZER_BODY_DARK;
       ctx.beginPath();
       ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
       ctx.stroke();

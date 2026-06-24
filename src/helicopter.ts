@@ -8,10 +8,6 @@ import {
   HELICOPTER_BOB_FREQUENCY,
   HELICOPTER_ROTOR_SPEED,
   HELICOPTER_GRAB_RADIUS_RATIO,
-  HELI_BUTTON_MARGIN,
-  HELI_BUTTON_RADIUS_RATIO,
-  HELI_BUTTON_MIN_RADIUS,
-  HELI_BUTTON_MAX_RADIUS,
   DART_FIRE_INTERVAL,
   DART_SPEED,
   DART_LIFETIME,
@@ -21,6 +17,7 @@ import {
   DART_RANGE_MAX,
   DART_SPREAD,
 } from './constants';
+import { vehicleButtonRadius, vehicleButtonX, vehicleButtonY } from './buttonLayout';
 
 export type HeliState = 'idle' | 'active' | 'cooldown';
 
@@ -86,17 +83,17 @@ export class HelicopterManager {
     return Math.max(DART_RANGE_MIN, Math.min(DART_RANGE_MAX, r));
   }
 
+  // First button in the shared left-edge column (see buttonLayout.ts).
   get buttonRadius(): number {
-    const r = Math.min(this.screenWidth, this.screenHeight) * HELI_BUTTON_RADIUS_RATIO;
-    return Math.max(HELI_BUTTON_MIN_RADIUS, Math.min(HELI_BUTTON_MAX_RADIUS, r));
+    return vehicleButtonRadius(this.screenWidth, this.screenHeight);
   }
 
   get buttonX(): number {
-    return HELI_BUTTON_MARGIN + this.buttonRadius;
+    return vehicleButtonX(this.screenWidth, this.screenHeight);
   }
 
   get buttonY(): number {
-    return this.screenHeight / 2;
+    return vehicleButtonY(0, this.screenWidth, this.screenHeight);
   }
 
   // Vertical position used for both drawing and firing (includes hover bob).

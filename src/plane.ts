@@ -12,7 +12,6 @@ import {
   PLANE_OVERSHOOT_MAX,
   PLANE_RUN_TURN_BIAS,
   PLANE_ARRIVE_RADIUS,
-  PLANE_BUTTON_GAP,
   MISSILE_FIRE_INTERVAL,
   MISSILE_SPEED,
   MISSILE_TURN_RATE,
@@ -21,11 +20,8 @@ import {
   MISSILE_RANGE_RATIO,
   MISSILE_RANGE_MIN,
   MISSILE_RANGE_MAX,
-  HELI_BUTTON_MARGIN,
-  HELI_BUTTON_RADIUS_RATIO,
-  HELI_BUTTON_MIN_RADIUS,
-  HELI_BUTTON_MAX_RADIUS,
 } from './constants';
+import { vehicleButtonRadius, vehicleButtonX, vehicleButtonY } from './buttonLayout';
 
 export type PlaneState = 'idle' | 'active' | 'cooldown';
 
@@ -122,20 +118,17 @@ export class PlaneManager {
     return Math.max(MISSILE_RANGE_MIN, Math.min(MISSILE_RANGE_MAX, r));
   }
 
-  // Button mirrors the helicopter's sizing/x but stacks directly beneath it.
+  // Second button in the shared left-edge column (see buttonLayout.ts).
   get buttonRadius(): number {
-    const r = Math.min(this.screenWidth, this.screenHeight) * HELI_BUTTON_RADIUS_RATIO;
-    return Math.max(HELI_BUTTON_MIN_RADIUS, Math.min(HELI_BUTTON_MAX_RADIUS, r));
+    return vehicleButtonRadius(this.screenWidth, this.screenHeight);
   }
 
   get buttonX(): number {
-    return HELI_BUTTON_MARGIN + this.buttonRadius;
+    return vehicleButtonX(this.screenWidth, this.screenHeight);
   }
 
   get buttonY(): number {
-    // The helicopter button is centred at screenHeight / 2 with the same radius;
-    // sit one diameter (plus a gap) below it.
-    return this.screenHeight / 2 + this.buttonRadius * 2 + PLANE_BUTTON_GAP;
+    return vehicleButtonY(1, this.screenWidth, this.screenHeight);
   }
 
   // Fade in on spawn, fade out at end of life.

@@ -187,10 +187,11 @@ export const PLANE_WINDOW_COLOR = '#BFE3FF';
 export const PLANE_ACCENT_COLOR = '#FFD23C'; // yellow trim stripe
 export const PLANE_PROP_COLOR = '#2A2F38';
 
-// Plane spawn button sits below the helicopter button (shares its sizing/x).
-// Gap is wide enough that the generous (1.25×) touch targets never overlap even
-// when the button radius is capped on large screens.
-export const PLANE_BUTTON_GAP = 28; // CSS px vertical gap between the two buttons
+// The three vehicle spawn buttons (helicopter, plane, bulldozer) form one
+// vertical column down the left edge; this is the centre-to-centre gap between
+// adjacent buttons. Wide enough that the generous (1.25×) touch targets never
+// overlap even when the radius is capped on large screens. See buttonLayout.ts.
+export const VEHICLE_BUTTON_GAP = 28; // CSS px vertical gap between adjacent buttons
 
 // ── Missiles (plane) ───────────────────────────────────────────────────────────
 export const MISSILE_FIRE_INTERVAL = 1.3; // seconds between launches
@@ -209,3 +210,41 @@ export const MISSILE_FLAME_COLOR = '#FFB23C';
 export const MISSILE_RANGE_RATIO = 0.7;   // of min(screen width, height) — generous
 export const MISSILE_RANGE_MIN = 320;     // CSS px floor
 export const MISSILE_RANGE_MAX = 720;     // CSS px cap
+
+// ── Bulldozer ────────────────────────────────────────────────────────────────
+// A ground vehicle: it drives in behind the nearest balloon, shoves it into the
+// nearer side wall, and crushes (taps) it in rhythmic bites once it is pinned.
+export const BULLDOZER_LIFETIME = 30;   // seconds the bulldozer stays out
+export const BULLDOZER_COOLDOWN = 35;   // seconds before it can be spawned again
+export const BULLDOZER_SIZE_RATIO = 0.17; // body length relative to screen width
+export const BULLDOZER_MIN_SIZE = 84;     // CSS px floor so it stays visible
+export const BULLDOZER_FADE_DURATION = 1.2; // seconds it fades out at end of life
+export const BULLDOZER_SPEED = 300;       // CSS px/s — drive speed while manoeuvring
+export const BULLDOZER_PUSH_SPEED = 160;  // CSS px/s — how fast it shoves a balloon
+export const BULLDOZER_TURN_RATE = 4.2;   // rad/s — how sharply it pivots to its heading
+export const BULLDOZER_TRACK_SPEED = 11;  // rad/s (visual track/wheel spin)
+// The blade sits this far in front of the body centre; a balloon's standoff
+// (where the dozer lines up behind it) is its radius plus this reach, so the
+// blade meets the balloon's near edge exactly.
+export const BULLDOZER_BLADE_REACH_RATIO = 0.44; // of body length
+// How close to the "behind the balloon" point the dozer must get before it
+// commits to a push (relative to body length, so it scales with the sprite).
+export const BULLDOZER_ENGAGE_RATIO = 0.3;
+// Half-height of the blade's capture lane (relative to body length). Any balloon
+// whose body overlaps this vertical band in front of the blade gets scooped, so
+// the dozer can herd a whole row of balloons into the wall at once.
+export const BULLDOZER_BLADE_HALF_RATIO = 0.34;
+// A balloon counts as pinned (and gets crushed) once its centre is within its
+// radius + this slack of the target wall.
+export const BULLDOZER_PIN_SLACK = 6;     // CSS px
+export const BULLDOZER_CRUSH_INTERVAL = 0.35; // seconds between crush "bites"
+
+export const BULLDOZER_BODY_COLOR = '#F4B73E';   // construction yellow
+export const BULLDOZER_BODY_DARK = '#CC8C1E';    // shading / button outline
+export const BULLDOZER_CAB_COLOR = '#E0A02C';    // operator cab
+export const BULLDOZER_WINDOW_COLOR = '#BFE3FF'; // glass (matches the others)
+export const BULLDOZER_BLADE_COLOR = '#9AA4AE';  // steel blade
+export const BULLDOZER_BLADE_DARK = '#6C757D';   // blade edge / shading
+export const BULLDOZER_TRACK_COLOR = '#33383F';  // rubber tracks
+export const BULLDOZER_WHEEL_COLOR = '#1F2329';  // wheel hubs
+export const BULLDOZER_DETAIL_COLOR = '#2A2F38'; // exhaust stack, panel lines

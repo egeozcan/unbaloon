@@ -5,6 +5,7 @@ import { SessionManager, Phase } from './session';
 import { SurpriseManager, SurpriseEventType } from './surprise';
 import { HelicopterManager } from './helicopter';
 import { PlaneManager } from './plane';
+import { BulldozerManager } from './bulldozer';
 import {
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
@@ -42,6 +43,7 @@ export class Game {
   private surprise: SurpriseManager;
   private helicopter: HelicopterManager;
   private plane: PlaneManager;
+  private bulldozer: BulldozerManager;
   private previousPhase: Phase = 1;
 
   // Surprise counter
@@ -66,6 +68,7 @@ export class Game {
     this.surprise = new SurpriseManager();
     this.helicopter = new HelicopterManager();
     this.plane = new PlaneManager();
+    this.bulldozer = new BulldozerManager();
   }
 
   start(): void {
@@ -146,6 +149,14 @@ export class Game {
       () => this.audio.playMissileLaunch(),
     );
 
+    // Update bulldozer: drives behind the nearest balloon, shoves it to the
+    // nearer side wall and crushes (taps) it in bites once it is pinned.
+    this.bulldozer.update(
+      dt,
+      this.balloons,
+      (b) => this.crushBalloon(b),
+    );
+
     // Update surprise events
     this.surprise.update(dt);
 
@@ -176,6 +187,10 @@ export class Game {
       this.renderer.drawBalloon(b);
     }
 
+    // Bulldozer is a ground vehicle — it rides just above the balloons (so its
+    // blade reads against the balloon it's shoving) but below the aircraft.
+    this.renderer.drawBulldozer(this.bulldozer);
+
     // Darts and helicopter ride above the balloons
     this.renderer.drawDarts(this.helicopter.darts);
     this.renderer.drawHelicopter(this.helicopter);
@@ -199,6 +214,7 @@ export class Game {
     if (this.finaleState === 'none') {
       this.renderer.drawHelicopterButton(this.helicopter);
       this.renderer.drawPlaneButton(this.plane);
+      this.renderer.drawBulldozerButton(this.bulldozer);
     }
 
     // Finale fade overlay
@@ -278,6 +294,14 @@ export class Game {
     }
   }
 
+  // Each bulldozer crush "bite" taps the pinned balloon once (decrement, or pop
+  // at 1). Reuses tapBalloon so surprise counting and pop sounds stay consistent,
+  // layering a crunchy squish on top.
+  private crushBalloon(b: Balloon): void {
+    this.audio.playBulldozerCrush();
+    this.tapBalloon(b);
+  }
+
   private findBalloon(x: number, y: number): Balloon | null {
     for (let i = this.balloons.length - 1; i >= 0; i--) {
       if (this.balloons[i].hitTest(x, y)) return this.balloons[i];
@@ -294,6 +318,10 @@ export class Game {
       }
       if (this.plane.trySpawn(x, y)) {
         this.audio.playPlaneSpawn();
+        return;
+      }
+      if (this.bulldozer.trySpawn(x, y)) {
+        this.audio.playBulldozerSpawn();
         return;
       }
       if (this.helicopter.tryGrab(id, x, y)) {
@@ -411,9 +439,11 @@ export class Game {
       drag.balloon.dragged = false;
     }
     this.drags.clear();
-    // Remove the helicopter and plane (and their projectiles) for the finale
+    // Remove the helicopter, plane and bulldozer (and their projectiles) for the
+    // finale; clearing the bulldozer also releases any balloon it was shoving.
     this.helicopter.clear();
     this.plane.clear();
+    this.bulldozer.clear();
   }
 
   private updateFinale(dt: number): void {
@@ -487,6 +517,8 @@ export class Game {
     this.helicopter.setScreenSize(this.width, this.height);
     this.plane.reset();
     this.plane.setScreenSize(this.width, this.height);
+    this.bulldozer.reset();
+    this.bulldozer.setScreenSize(this.width, this.height);
     this.focusX = this.width / 2;
     this.focusY = this.height / 2;
     this.session.reset();
@@ -577,5 +609,6 @@ export class Game {
     this.surprise.setScreenSize(this.width, this.height);
     this.helicopter.setScreenSize(this.width, this.height);
     this.plane.setScreenSize(this.width, this.height);
+    this.bulldozer.setScreenSize(this.width, this.height);
   }
 }

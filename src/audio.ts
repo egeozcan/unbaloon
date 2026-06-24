@@ -438,6 +438,79 @@ export class AudioManager {
     lfo.stop(now + 0.7);
   }
 
+  // ── Bulldozer sounds ─────────────────────────────────────────────────────
+
+  // Low, gruff diesel engine turning over as the bulldozer rolls out.
+  playBulldozerSpawn(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const lowpass = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(38, now);
+    osc.frequency.linearRampToValueAtTime(70, now + 0.5);
+    osc.frequency.linearRampToValueAtTime(58, now + 0.8);
+    // Slow, chunky tremolo for the diesel chug.
+    lfo.type = 'square';
+    lfo.frequency.setValueAtTime(7, now);
+    lfo.frequency.linearRampToValueAtTime(11, now + 0.7);
+    lfoGain.gain.value = 0.07;
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 600;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.14, now + 0.12);
+    gain.gain.linearRampToValueAtTime(0, now + 0.85);
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+    osc.connect(lowpass);
+    lowpass.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    lfo.start(now);
+    osc.stop(now + 0.85);
+    lfo.stop(now + 0.85);
+  }
+
+  // Short crunchy squish for each crush "bite" — kept quiet as it repeats.
+  playBulldozerCrush(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    // Gritty noise scrape.
+    const bufferSize = Math.ceil(ctx.sampleRate * 0.08);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.setValueAtTime(1400, now);
+    lowpass.frequency.exponentialRampToValueAtTime(400, now + 0.08);
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.12, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    noise.connect(lowpass);
+    lowpass.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.08);
+    // Low metallic thud underneath.
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(70, now + 0.06);
+    oscGain.gain.setValueAtTime(0.14, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.07);
+  }
+
   // Soft filtered "fwoosh" as a homing missile launches.
   playMissileLaunch(): void {
     const ctx = this.ensureContext();
