@@ -76,57 +76,169 @@ export class Renderer {
     const rx = b.radiusX * b.scaleX;
     const ry = b.radiusY * b.scaleY;
 
+    const highlightColor = BALLOON_HIGHLIGHTS[b.number] || '#FFFFFF';
+    const edgeColor = this.shadeColor(b.color, -0.34); // saturated/darker rim
+    const aoColor = this.shadeColor(b.color, -0.55); // lower-right ambient occlusion
+
+    // Calm, subtle motion only: a ~1px highlight drift and a faint string sway.
+    const t = b.animTime || 0;
+    const drift = Math.sin(t * 1.1) * rx * 0.012;
+
     ctx.save();
     ctx.translate(b.x, b.y);
 
-    // Balloon body
+    // --- Body: every fill is clipped to the exact (rx, ry) hit-test ellipse so
+    // no pixel paints beyond it. The teardrop pinch is faked with shading only. ---
+    ctx.save();
     ctx.beginPath();
     ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = b.color;
-    ctx.fill();
+    ctx.clip();
 
-    // 3D highlight shine
-    const highlightColor = BALLOON_HIGHLIGHTS[b.number] || '#FFFFFF';
-    const shine = ctx.createRadialGradient(
-      -rx * 0.3, -ry * 0.3, rx * 0.05,
-      -rx * 0.1, -ry * 0.1, rx * 0.6
+    // 1) Base volumetric gradient: bright upper-left falling to a saturated rim.
+    const body = ctx.createRadialGradient(
+      -rx * 0.32, -ry * 0.40, rx * 0.05,
+      -rx * 0.05, -ry * 0.05, ry * 1.18
     );
-    shine.addColorStop(0, highlightColor);
-    shine.addColorStop(1, 'transparent');
+    body.addColorStop(0, this.shadeColor(b.color, 0.30));
+    body.addColorStop(0.45, b.color);
+    body.addColorStop(1, edgeColor);
+    ctx.fillStyle = body;
+    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
+
+    // 2) Lower-right ambient-occlusion crescent for grounded volume.
+    const ao = ctx.createRadialGradient(
+      rx * 0.55, ry * 0.62, rx * 0.1,
+      rx * 0.40, ry * 0.50, ry * 1.05
+    );
+    ao.addColorStop(0, this.withAlpha(aoColor, 0.5));
+    ao.addColorStop(0.55, this.withAlpha(aoColor, 0.16));
+    ao.addColorStop(1, this.withAlpha(aoColor, 0));
+    ctx.fillStyle = ao;
+    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
+
+    // 3) Teardrop pinch toward the knot: a soft dark gather at the very bottom,
+    // fully inside the ellipse, hinting the latex narrows to the tie.
+    const pinch = ctx.createRadialGradient(
+      0, ry * 0.92, rx * 0.05,
+      0, ry * 0.98, rx * 0.95
+    );
+    pinch.addColorStop(0, this.withAlpha(aoColor, 0.38));
+    pinch.addColorStop(1, this.withAlpha(aoColor, 0));
+    ctx.fillStyle = pinch;
+    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
+
+    // 4) Soft inner-rim light along the upper-left edge for a latex sheen.
+    const rim = ctx.createRadialGradient(
+      -rx * 0.18, -ry * 0.18, ry * 0.62,
+      -rx * 0.18, -ry * 0.18, ry * 1.02
+    );
+    rim.addColorStop(0, this.withAlpha(highlightColor, 0));
+    rim.addColorStop(0.82, this.withAlpha(highlightColor, 0));
+    rim.addColorStop(1, this.withAlpha(highlightColor, 0.28));
+    ctx.fillStyle = rim;
+    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
+
+    // 5) Bright elongated specular highlight, upper-left, gently drifting.
+    ctx.save();
+    ctx.translate(-rx * 0.34 + drift, -ry * 0.40 + drift);
+    ctx.rotate(-0.62);
+    const specPath = new Path2D();
+    specPath.ellipse(0, 0, rx * 0.20, ry * 0.34, 0, 0, Math.PI * 2);
+    const spec = ctx.createRadialGradient(0, 0, 0, 0, 0, rx * 0.30);
+    spec.addColorStop(0, this.withAlpha('#FFFFFF', 0.85));
+    spec.addColorStop(0.5, this.withAlpha(highlightColor, 0.45));
+    spec.addColorStop(1, this.withAlpha(highlightColor, 0));
+    ctx.fillStyle = spec;
+    ctx.fill(specPath);
+    ctx.restore();
+
+    // 6) Tiny crisp hotspot for glossy sparkle.
     ctx.beginPath();
-    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = shine;
+    ctx.ellipse(-rx * 0.40 + drift, -ry * 0.50 + drift, rx * 0.08, ry * 0.07, -0.5, 0, Math.PI * 2);
+    ctx.fillStyle = this.withAlpha('#FFFFFF', 0.9);
     ctx.fill();
 
-    // Number text
+    ctx.restore(); // end body clip
+
+    // --- Number: drawn over the body, never rotated, with a subtle drop shadow ---
     const fontSize = Math.round(ry * 0.7);
     ctx.font = `bold ${fontSize}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-    ctx.fillText(String(b.number), 0, 0);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
+    ctx.shadowBlur = Math.max(2, ry * 0.06);
+    ctx.shadowOffsetY = Math.max(1, ry * 0.03);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+    ctx.fillText(String(b.number), 0, ry * 0.02);
+    ctx.restore();
 
-    // Tie knot (small triangle at bottom)
-    const knotY = ry;
-    const knotSize = rx * 0.15;
+    // --- Knot: crisp little double-lobe just below the body, in the rim color ---
+    const knotTop = ry * 0.985;
+    const knotR = rx * 0.13;
+    const knotGrad = ctx.createLinearGradient(0, knotTop, 0, knotTop + knotR * 2.4);
+    knotGrad.addColorStop(0, b.color);
+    knotGrad.addColorStop(1, edgeColor);
+    ctx.fillStyle = knotGrad;
     ctx.beginPath();
-    ctx.moveTo(-knotSize, knotY);
-    ctx.lineTo(knotSize, knotY);
-    ctx.lineTo(0, knotY + knotSize * 2);
+    ctx.moveTo(0, knotTop);
+    ctx.bezierCurveTo(-knotR * 1.7, knotTop + knotR * 0.5, -knotR * 1.2, knotTop + knotR * 2.4, 0, knotTop + knotR * 2.1);
+    ctx.bezierCurveTo(knotR * 1.2, knotTop + knotR * 2.4, knotR * 1.7, knotTop + knotR * 0.5, 0, knotTop);
     ctx.closePath();
-    ctx.fillStyle = b.color;
     ctx.fill();
 
-    // String (quadratic curve hanging down)
+    // --- String: thin, gently curved, with a calm sway ---
     const stringLen = ry * STRING_LENGTH_RATIO;
+    const stringTop = knotTop + knotR * 2.1;
+    const sway = Math.sin(t * 0.9) * rx * 0.18;
     ctx.beginPath();
-    ctx.moveTo(0, knotY + knotSize * 2);
-    ctx.quadraticCurveTo(rx * 0.3, knotY + knotSize * 2 + stringLen * 0.5, 0, knotY + knotSize * 2 + stringLen);
-    ctx.strokeStyle = '#888';
+    ctx.moveTo(0, stringTop);
+    ctx.bezierCurveTo(
+      rx * 0.32 + sway, stringTop + stringLen * 0.40,
+      -rx * 0.20 + sway, stringTop + stringLen * 0.72,
+      sway * 0.6, stringTop + stringLen
+    );
+    ctx.strokeStyle = 'rgba(120, 120, 120, 0.85)';
     ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
     ctx.stroke();
 
     ctx.restore();
+  }
+
+  /**
+   * Lighten (amount > 0) or darken (amount < 0) a #RRGGBB color.
+   * amount is in [-1, 1]; returns an #RRGGBB string. Pure, stable, no DOM.
+   */
+  private shadeColor(hex: string, amount: number): string {
+    const { r, g, b } = this.parseHex(hex);
+    const mix = (c: number) =>
+      amount >= 0
+        ? Math.round(c + (255 - c) * amount)
+        : Math.round(c * (1 + amount));
+    const clamp = (n: number) => Math.max(0, Math.min(255, mix(n)));
+    const to2 = (n: number) => clamp(n).toString(16).padStart(2, '0');
+    return `#${to2(r)}${to2(g)}${to2(b)}`;
+  }
+
+  /** Convert a #RRGGBB color to an rgba() string with the given alpha. */
+  private withAlpha(hex: string, alpha: number): string {
+    const { r, g, b } = this.parseHex(hex);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  /** Parse a #RGB or #RRGGBB color into 0-255 components. */
+  private parseHex(hex: string): { r: number; g: number; b: number } {
+    let h = hex.replace('#', '');
+    if (h.length === 3) {
+      h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    }
+    const num = parseInt(h, 16);
+    return {
+      r: (num >> 16) & 0xff,
+      g: (num >> 8) & 0xff,
+      b: num & 0xff,
+    };
   }
 
   private drawSpecialBalloon(b: Balloon): void {

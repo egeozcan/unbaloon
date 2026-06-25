@@ -17,7 +17,7 @@ export const BALLOON_HIGHLIGHTS: Record<number, string> = {
 };
 
 // Balloon sizing (relative to screen width)
-export const BALLOON_WIDTH_RATIO = 0.14;
+export const BALLOON_WIDTH_RATIO = 0.125;
 export const BALLOON_ASPECT = 1.25; // height = width * aspect
 
 // Movement
@@ -34,9 +34,11 @@ export const SPAWN_RAMP_DURATION = 120;  // seconds — ramp completes at end of
 // Number distribution weights (index = number, value = weight)
 export const NUMBER_WEIGHTS = [0, 5, 4, 3, 2, 1]; // more 1s and 2s
 
-// Tap animation
-export const SQUEEZE_SCALE_X = 0.8;
-export const SQUEEZE_SCALE_Y = 1.2;
+// Tap animation — a gentle "squash & bounce" on tap: the balloon briefly gets a
+// touch wider and shorter, then springs back. Kept subtle (and roughly
+// volume-conserving) so it reads as a happy boing, never a stretched egg.
+export const SQUEEZE_SCALE_X = 1.1;
+export const SQUEEZE_SCALE_Y = 0.9;
 export const SQUEEZE_DURATION = 0.2; // seconds
 
 // Pop animation
