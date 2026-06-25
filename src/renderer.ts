@@ -105,58 +105,7 @@ export class Renderer {
     ctx.fillStyle = body;
     ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
 
-    // 2) Lower-right ambient-occlusion crescent for grounded volume.
-    const ao = ctx.createRadialGradient(
-      rx * 0.55, ry * 0.62, rx * 0.1,
-      rx * 0.40, ry * 0.50, ry * 1.05
-    );
-    ao.addColorStop(0, this.withAlpha(aoColor, 0.5));
-    ao.addColorStop(0.55, this.withAlpha(aoColor, 0.16));
-    ao.addColorStop(1, this.withAlpha(aoColor, 0));
-    ctx.fillStyle = ao;
-    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
-
-    // 3) Teardrop pinch toward the knot: a soft dark gather at the very bottom,
-    // fully inside the ellipse, hinting the latex narrows to the tie.
-    const pinch = ctx.createRadialGradient(
-      0, ry * 0.92, rx * 0.05,
-      0, ry * 0.98, rx * 0.95
-    );
-    pinch.addColorStop(0, this.withAlpha(aoColor, 0.38));
-    pinch.addColorStop(1, this.withAlpha(aoColor, 0));
-    ctx.fillStyle = pinch;
-    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
-
-    // 4) Soft inner-rim light along the upper-left edge for a latex sheen.
-    const rim = ctx.createRadialGradient(
-      -rx * 0.18, -ry * 0.18, ry * 0.62,
-      -rx * 0.18, -ry * 0.18, ry * 1.02
-    );
-    rim.addColorStop(0, this.withAlpha(highlightColor, 0));
-    rim.addColorStop(0.82, this.withAlpha(highlightColor, 0));
-    rim.addColorStop(1, this.withAlpha(highlightColor, 0.28));
-    ctx.fillStyle = rim;
-    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
-
-    // 5) Bright elongated specular highlight, upper-left, gently drifting.
-    ctx.save();
-    ctx.translate(-rx * 0.34 + drift, -ry * 0.40 + drift);
-    ctx.rotate(-0.62);
-    const specPath = new Path2D();
-    specPath.ellipse(0, 0, rx * 0.20, ry * 0.34, 0, 0, Math.PI * 2);
-    const spec = ctx.createRadialGradient(0, 0, 0, 0, 0, rx * 0.30);
-    spec.addColorStop(0, this.withAlpha('#FFFFFF', 0.85));
-    spec.addColorStop(0.5, this.withAlpha(highlightColor, 0.45));
-    spec.addColorStop(1, this.withAlpha(highlightColor, 0));
-    ctx.fillStyle = spec;
-    ctx.fill(specPath);
-    ctx.restore();
-
-    // 6) Tiny crisp hotspot for glossy sparkle.
-    ctx.beginPath();
-    ctx.ellipse(-rx * 0.40 + drift, -ry * 0.50 + drift, rx * 0.08, ry * 0.07, -0.5, 0, Math.PI * 2);
-    ctx.fillStyle = this.withAlpha('#FFFFFF', 0.9);
-    ctx.fill();
+    this.paintBalloonGloss(rx, ry, aoColor, highlightColor, drift);
 
     ctx.restore(); // end body clip
 
@@ -173,35 +122,7 @@ export class Renderer {
     ctx.fillText(String(b.number), 0, ry * 0.02);
     ctx.restore();
 
-    // --- Knot: crisp little double-lobe just below the body, in the rim color ---
-    const knotTop = ry * 0.985;
-    const knotR = rx * 0.13;
-    const knotGrad = ctx.createLinearGradient(0, knotTop, 0, knotTop + knotR * 2.4);
-    knotGrad.addColorStop(0, b.color);
-    knotGrad.addColorStop(1, edgeColor);
-    ctx.fillStyle = knotGrad;
-    ctx.beginPath();
-    ctx.moveTo(0, knotTop);
-    ctx.bezierCurveTo(-knotR * 1.7, knotTop + knotR * 0.5, -knotR * 1.2, knotTop + knotR * 2.4, 0, knotTop + knotR * 2.1);
-    ctx.bezierCurveTo(knotR * 1.2, knotTop + knotR * 2.4, knotR * 1.7, knotTop + knotR * 0.5, 0, knotTop);
-    ctx.closePath();
-    ctx.fill();
-
-    // --- String: thin, gently curved, with a calm sway ---
-    const stringLen = ry * STRING_LENGTH_RATIO;
-    const stringTop = knotTop + knotR * 2.1;
-    const sway = Math.sin(t * 0.9) * rx * 0.18;
-    ctx.beginPath();
-    ctx.moveTo(0, stringTop);
-    ctx.bezierCurveTo(
-      rx * 0.32 + sway, stringTop + stringLen * 0.40,
-      -rx * 0.20 + sway, stringTop + stringLen * 0.72,
-      sway * 0.6, stringTop + stringLen
-    );
-    ctx.strokeStyle = 'rgba(120, 120, 120, 0.85)';
-    ctx.lineWidth = 1.5;
-    ctx.lineCap = 'round';
-    ctx.stroke();
+    this.drawKnotAndString(rx, ry, b.color, edgeColor, t);
 
     ctx.restore();
   }
@@ -241,70 +162,176 @@ export class Renderer {
     };
   }
 
+  // Layered "gloss" overlays shared by every balloon: a lower-right ambient
+  // occlusion crescent, a teardrop pinch toward the knot, an upper-left rim
+  // sheen, a bright specular highlight, and a tiny sparkle. Call this with an
+  // active ellipse clip at the local origin so nothing escapes the body.
+  // `specAlpha` pulses the highlight (star balloons twinkle); `aoScale` eases
+  // the shadows back for already-busy fills like the rainbow gradient.
+  private paintBalloonGloss(
+    rx: number,
+    ry: number,
+    aoColor: string,
+    highlightColor: string,
+    drift: number,
+    specAlpha: number = 1,
+    aoScale: number = 1,
+  ): void {
+    const ctx = this.ctx;
+
+    // Lower-right ambient-occlusion crescent for grounded volume.
+    const ao = ctx.createRadialGradient(
+      rx * 0.55, ry * 0.62, rx * 0.1,
+      rx * 0.40, ry * 0.50, ry * 1.05
+    );
+    ao.addColorStop(0, this.withAlpha(aoColor, 0.5 * aoScale));
+    ao.addColorStop(0.55, this.withAlpha(aoColor, 0.16 * aoScale));
+    ao.addColorStop(1, this.withAlpha(aoColor, 0));
+    ctx.fillStyle = ao;
+    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
+
+    // Teardrop pinch toward the knot: a soft dark gather at the very bottom.
+    const pinch = ctx.createRadialGradient(
+      0, ry * 0.92, rx * 0.05,
+      0, ry * 0.98, rx * 0.95
+    );
+    pinch.addColorStop(0, this.withAlpha(aoColor, 0.38 * aoScale));
+    pinch.addColorStop(1, this.withAlpha(aoColor, 0));
+    ctx.fillStyle = pinch;
+    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
+
+    // Soft inner-rim light along the upper-left edge for a latex sheen.
+    const rim = ctx.createRadialGradient(
+      -rx * 0.18, -ry * 0.18, ry * 0.62,
+      -rx * 0.18, -ry * 0.18, ry * 1.02
+    );
+    rim.addColorStop(0, this.withAlpha(highlightColor, 0));
+    rim.addColorStop(0.82, this.withAlpha(highlightColor, 0));
+    rim.addColorStop(1, this.withAlpha(highlightColor, 0.28));
+    ctx.fillStyle = rim;
+    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
+
+    // Bright elongated specular highlight, upper-left, gently drifting.
+    if (specAlpha > 0) {
+      ctx.save();
+      ctx.translate(-rx * 0.34 + drift, -ry * 0.40 + drift);
+      ctx.rotate(-0.62);
+      const specPath = new Path2D();
+      specPath.ellipse(0, 0, rx * 0.20, ry * 0.34, 0, 0, Math.PI * 2);
+      const spec = ctx.createRadialGradient(0, 0, 0, 0, 0, rx * 0.30);
+      spec.addColorStop(0, this.withAlpha('#FFFFFF', 0.85 * specAlpha));
+      spec.addColorStop(0.5, this.withAlpha(highlightColor, 0.45 * specAlpha));
+      spec.addColorStop(1, this.withAlpha(highlightColor, 0));
+      ctx.fillStyle = spec;
+      ctx.fill(specPath);
+      ctx.restore();
+    }
+
+    // Tiny crisp hotspot for glossy sparkle.
+    ctx.beginPath();
+    ctx.ellipse(-rx * 0.40 + drift, -ry * 0.50 + drift, rx * 0.08, ry * 0.07, -0.5, 0, Math.PI * 2);
+    ctx.fillStyle = this.withAlpha('#FFFFFF', 0.9);
+    ctx.fill();
+  }
+
+  // The knot (a crisp double-lobe just below the body) and a thin, gently
+  // swaying string. Shared by numbered and special balloons.
+  private drawKnotAndString(
+    rx: number,
+    ry: number,
+    knotColor: string,
+    edgeColor: string,
+    t: number,
+  ): void {
+    const ctx = this.ctx;
+    const knotTop = ry * 0.985;
+    const knotR = rx * 0.13;
+    const knotGrad = ctx.createLinearGradient(0, knotTop, 0, knotTop + knotR * 2.4);
+    knotGrad.addColorStop(0, knotColor);
+    knotGrad.addColorStop(1, edgeColor);
+    ctx.fillStyle = knotGrad;
+    ctx.beginPath();
+    ctx.moveTo(0, knotTop);
+    ctx.bezierCurveTo(-knotR * 1.7, knotTop + knotR * 0.5, -knotR * 1.2, knotTop + knotR * 2.4, 0, knotTop + knotR * 2.1);
+    ctx.bezierCurveTo(knotR * 1.2, knotTop + knotR * 2.4, knotR * 1.7, knotTop + knotR * 0.5, 0, knotTop);
+    ctx.closePath();
+    ctx.fill();
+
+    const stringLen = ry * STRING_LENGTH_RATIO;
+    const stringTop = knotTop + knotR * 2.1;
+    const sway = Math.sin(t * 0.9) * rx * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(0, stringTop);
+    ctx.bezierCurveTo(
+      rx * 0.32 + sway, stringTop + stringLen * 0.40,
+      -rx * 0.20 + sway, stringTop + stringLen * 0.72,
+      sway * 0.6, stringTop + stringLen
+    );
+    ctx.strokeStyle = 'rgba(120, 120, 120, 0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
   private drawSpecialBalloon(b: Balloon): void {
     const ctx = this.ctx;
     const rx = b.radiusX * b.scaleX;
     const ry = b.radiusY * b.scaleY;
+    const isRainbow = b.specialType === 'rainbow' || b.isFinale;
+
+    const t = b.animTime || 0;
+    const drift = Math.sin(t * 1.1) * rx * 0.012;
+
+    // Colour roles, mirroring the numbered balloons' light model.
+    const knotColor = isRainbow ? RAINBOW_GRADIENT_COLORS[0] : b.color;
+    const edgeColor = this.shadeColor(knotColor, -0.34);
+    const aoColor = isRainbow ? '#2A2740' : this.shadeColor(b.color, -0.55);
+    const highlightColor = isRainbow ? '#FFFFFF' : this.shadeColor(b.color, 0.5);
+    // Star balloons keep their twinkle: pulse the specular highlight.
+    const specAlpha = b.specialType === 'star' ? 0.55 + 0.45 * Math.sin(t * 4) : 1;
+    const aoScale = isRainbow ? 0.8 : 1;
 
     ctx.save();
     ctx.translate(b.x, b.y);
 
-    // Balloon body
+    // --- Body, clipped to the exact hit-test ellipse ---
+    ctx.save();
     ctx.beginPath();
     ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    ctx.clip();
 
-    if (b.specialType === 'rainbow' || b.isFinale) {
+    if (isRainbow) {
+      // Diagonal rainbow sweep — the signature special-balloon fill.
       const grad = ctx.createLinearGradient(-rx, -ry, rx, ry);
       RAINBOW_GRADIENT_COLORS.forEach((color, i) => {
         grad.addColorStop(i / (RAINBOW_GRADIENT_COLORS.length - 1), color);
       });
       ctx.fillStyle = grad;
     } else {
-      ctx.fillStyle = b.color;
+      // The same volumetric body the numbered balloons use.
+      const body = ctx.createRadialGradient(
+        -rx * 0.32, -ry * 0.40, rx * 0.05,
+        -rx * 0.05, -ry * 0.05, ry * 1.18
+      );
+      body.addColorStop(0, this.shadeColor(b.color, 0.30));
+      body.addColorStop(0.45, b.color);
+      body.addColorStop(1, edgeColor);
+      ctx.fillStyle = body;
     }
-    ctx.fill();
+    ctx.fillRect(-rx, -ry, rx * 2, ry * 2);
 
-    // Highlight shine — star balloons get oscillating shimmer
-    const shimmerAlpha = b.specialType === 'star'
-      ? 0.3 + 0.3 * Math.sin(b.animTime * 4)
-      : 0.6;
-    const shine = ctx.createRadialGradient(
-      -rx * 0.3, -ry * 0.3, rx * 0.05,
-      -rx * 0.1, -ry * 0.1, rx * 0.6
-    );
-    shine.addColorStop(0, `rgba(255, 255, 255, ${shimmerAlpha})`);
-    shine.addColorStop(1, 'transparent');
-    ctx.beginPath();
-    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = shine;
-    ctx.fill();
+    this.paintBalloonGloss(rx, ry, aoColor, highlightColor, drift, specAlpha, aoScale);
 
-    // Icon/face
+    ctx.restore(); // end body clip
+
+    // --- Icon / face on top, kept crisp like the number on numbered balloons ---
     if (b.specialType === 'star') {
       this.drawStarIcon(rx, ry);
     } else if (b.specialType?.startsWith('animal-')) {
       this.drawAnimalFace(b.specialType, rx, ry);
     }
 
-    // Tie knot
-    const knotY = ry;
-    const knotSize = rx * 0.15;
-    ctx.beginPath();
-    ctx.moveTo(-knotSize, knotY);
-    ctx.lineTo(knotSize, knotY);
-    ctx.lineTo(0, knotY + knotSize * 2);
-    ctx.closePath();
-    ctx.fillStyle = b.isFinale ? RAINBOW_GRADIENT_COLORS[0] : b.color;
-    ctx.fill();
-
-    // String
-    const stringLen = ry * STRING_LENGTH_RATIO;
-    ctx.beginPath();
-    ctx.moveTo(0, knotY + knotSize * 2);
-    ctx.quadraticCurveTo(rx * 0.3, knotY + knotSize * 2 + stringLen * 0.5, 0, knotY + knotSize * 2 + stringLen);
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    this.drawKnotAndString(rx, ry, knotColor, edgeColor, t);
 
     ctx.restore();
   }
