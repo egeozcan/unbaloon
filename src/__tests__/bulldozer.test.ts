@@ -15,6 +15,7 @@ import {
 class FakeTarget implements PushTarget {
   baseX: number;
   dragged = false;
+  loaded = false;
   constructor(
     public x: number,
     public y: number,

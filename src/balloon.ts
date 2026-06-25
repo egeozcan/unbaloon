@@ -53,6 +53,11 @@ export class Balloon {
   // Dragging
   dragged: boolean = false;
 
+  // Loaded onto the tractor's trailer: frozen in place (the tractor positions it)
+  // while it is processed, and excluded from every other interaction (player
+  // taps/drags and the other vehicles all skip a loaded balloon).
+  loaded: boolean = false;
+
   // Special type / finale
   specialType?: SpecialType;
   isFinale: boolean = false;
@@ -198,7 +203,7 @@ export class Balloon {
   }
 
   private updateFloating(dt: number): void {
-    if (!this.dragged) {
+    if (!this.dragged && !this.loaded) {
       if (this.isFinale && this.y <= this.screenHeight / 2) {
         this.y = this.screenHeight / 2;
       } else {
@@ -213,8 +218,8 @@ export class Balloon {
   }
 
   private updateSqueeze(dt: number): void {
-    // Also keep floating during squeeze (unless dragged)
-    if (!this.dragged) {
+    // Also keep floating during squeeze (unless dragged or loaded on the trailer)
+    if (!this.dragged && !this.loaded) {
       this.y -= this.speed * dt;
       this.swayTime += dt;
       this.x = this.baseX + Math.sin(this.swayTime * SWAY_FREQUENCY * Math.PI * 2 + this.swayOffset) * SWAY_AMPLITUDE;

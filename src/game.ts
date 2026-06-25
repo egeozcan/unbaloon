@@ -6,6 +6,7 @@ import { SurpriseManager, SurpriseEventType } from './surprise';
 import { HelicopterManager } from './helicopter';
 import { PlaneManager } from './plane';
 import { BulldozerManager } from './bulldozer';
+import { TractorManager } from './tractor';
 import {
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
@@ -44,6 +45,7 @@ export class Game {
   private helicopter: HelicopterManager;
   private plane: PlaneManager;
   private bulldozer: BulldozerManager;
+  private tractor: TractorManager;
   private previousPhase: Phase = 1;
 
   // Surprise counter
@@ -69,6 +71,7 @@ export class Game {
     this.helicopter = new HelicopterManager();
     this.plane = new PlaneManager();
     this.bulldozer = new BulldozerManager();
+    this.tractor = new TractorManager();
   }
 
   start(): void {
@@ -130,10 +133,14 @@ export class Game {
     // Remove off-screen and dead balloons
     this.balloons = this.balloons.filter(b => !b.isOffScreen() && !b.isDead());
 
+    // Balloons riding the tractor's trailer are committed to it — exclude them
+    // from every other vehicle's targeting so nothing fights over a balloon.
+    const freeBalloons = this.balloons.filter(b => !b.loaded);
+
     // Update helicopter: darts auto-target balloons and tap them (decrement, pop at 1)
     this.helicopter.update(
       dt,
-      this.balloons,
+      freeBalloons,
       (b) => this.tapBalloon(b),
       () => this.audio.playDartShoot(),
     );
@@ -144,7 +151,7 @@ export class Game {
       dt,
       this.focusX,
       this.focusY,
-      this.balloons,
+      freeBalloons,
       (b) => this.missileHit(b),
       () => this.audio.playMissileLaunch(),
     );
@@ -153,8 +160,17 @@ export class Game {
     // nearer side wall and crushes (taps) it in bites once it is pinned.
     this.bulldozer.update(
       dt,
-      this.balloons,
+      freeBalloons,
       (b) => this.crushBalloon(b),
+    );
+
+    // Update tractor: shuttles along the bottom towing a trailer, scooping up any
+    // balloon that touches the bed and shedding a layer from each on a timer.
+    this.tractor.update(
+      dt,
+      this.balloons,
+      (b) => this.tapBalloon(b),
+      () => this.audio.playTractorLoad(),
     );
 
     // Update surprise events
@@ -191,6 +207,10 @@ export class Game {
     // blade reads against the balloon it's shoving) but below the aircraft.
     this.renderer.drawBulldozer(this.bulldozer);
 
+    // Tractor is a ground vehicle too — drawn over the balloons so its trailer
+    // deck cradles the loaded ones, but below the aircraft.
+    this.renderer.drawTractor(this.tractor);
+
     // Darts and helicopter ride above the balloons
     this.renderer.drawDarts(this.helicopter.darts);
     this.renderer.drawHelicopter(this.helicopter);
@@ -215,6 +235,7 @@ export class Game {
       this.renderer.drawHelicopterButton(this.helicopter);
       this.renderer.drawPlaneButton(this.plane);
       this.renderer.drawBulldozerButton(this.bulldozer);
+      this.renderer.drawTractorButton(this.tractor);
     }
 
     // Finale fade overlay
@@ -304,6 +325,8 @@ export class Game {
 
   private findBalloon(x: number, y: number): Balloon | null {
     for (let i = this.balloons.length - 1; i >= 0; i--) {
+      // Loaded balloons belong to the tractor — not grabbable or tappable.
+      if (this.balloons[i].loaded) continue;
       if (this.balloons[i].hitTest(x, y)) return this.balloons[i];
     }
     return null;
@@ -322,6 +345,10 @@ export class Game {
       }
       if (this.bulldozer.trySpawn(x, y)) {
         this.audio.playBulldozerSpawn();
+        return;
+      }
+      if (this.tractor.trySpawn(x, y)) {
+        this.audio.playTractorSpawn();
         return;
       }
       if (this.helicopter.tryGrab(id, x, y)) {
@@ -394,6 +421,9 @@ export class Game {
     drag.balloon.dragged = false;
     if (!drag.moved) {
       this.tapBalloon(drag.balloon);
+    } else if (this.tractor.tryDrop(drag.balloon)) {
+      // Dropped onto the trailer — the tractor now carries it.
+      this.audio.playTractorLoad();
     }
     this.drags.delete(id);
   }
@@ -439,11 +469,13 @@ export class Game {
       drag.balloon.dragged = false;
     }
     this.drags.clear();
-    // Remove the helicopter, plane and bulldozer (and their projectiles) for the
-    // finale; clearing the bulldozer also releases any balloon it was shoving.
+    // Remove the helicopter, plane, bulldozer and tractor (and their projectiles)
+    // for the finale; clearing the bulldozer/tractor also releases any balloon
+    // they were holding.
     this.helicopter.clear();
     this.plane.clear();
     this.bulldozer.clear();
+    this.tractor.clear();
   }
 
   private updateFinale(dt: number): void {
@@ -519,6 +551,8 @@ export class Game {
     this.plane.setScreenSize(this.width, this.height);
     this.bulldozer.reset();
     this.bulldozer.setScreenSize(this.width, this.height);
+    this.tractor.reset();
+    this.tractor.setScreenSize(this.width, this.height);
     this.focusX = this.width / 2;
     this.focusY = this.height / 2;
     this.session.reset();
@@ -610,5 +644,6 @@ export class Game {
     this.helicopter.setScreenSize(this.width, this.height);
     this.plane.setScreenSize(this.width, this.height);
     this.bulldozer.setScreenSize(this.width, this.height);
+    this.tractor.setScreenSize(this.width, this.height);
   }
 }

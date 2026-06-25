@@ -39,12 +39,22 @@ import {
   BULLDOZER_TRACK_COLOR,
   BULLDOZER_WHEEL_COLOR,
   BULLDOZER_DETAIL_COLOR,
+  TRACTOR_BODY_COLOR,
+  TRACTOR_BODY_DARK,
+  TRACTOR_CAB_COLOR,
+  TRACTOR_WINDOW_COLOR,
+  TRACTOR_WHEEL_COLOR,
+  TRACTOR_WHEEL_HUB,
+  TRACTOR_TRAILER_COLOR,
+  TRACTOR_TRAILER_DARK,
+  TRACTOR_DETAIL_COLOR,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
 import type { ActiveEvent, Bubble } from './surprise';
 import type { Dart, HelicopterManager } from './helicopter';
 import type { Missile, PlaneManager } from './plane';
 import type { BulldozerManager } from './bulldozer';
+import type { TractorManager } from './tractor';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -1334,6 +1344,274 @@ export class Renderer {
       ctx.lineWidth = Math.max(3, r * 0.12);
       ctx.lineCap = 'round';
       ctx.strokeStyle = BULLDOZER_BODY_DARK;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ── Tractor, trailer, spawn button ───────────────────────────────────────────
+
+  drawTractor(tractor: TractorManager): void {
+    const alpha = tractor.alpha;
+    if (alpha <= 0) return;
+    const s = tractor.size;
+    // Trailer (behind, to the left) first, then the drawbar, then the body on top
+    // so the tractor's rear overlaps the hitch.
+    this.drawTrailer(tractor.trailerCenterX, tractor.bedSurfaceY, tractor.bedHalfWidth, s, tractor.wheelPhase, alpha);
+    this.drawDrawbar(tractor, s, alpha);
+    this.drawTractorBody(tractor.x, tractor.y, s, tractor.wheelPhase, alpha);
+  }
+
+  // A clean tractor tyre: dark rubber, a yellow hub with a few spokes, hub cap.
+  private drawTractorWheel(wx: number, wy: number, wr: number, wheelPhase: number): void {
+    const ctx = this.ctx;
+    // Tyre.
+    ctx.fillStyle = TRACTOR_WHEEL_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+    ctx.fill();
+    // Soft tyre-wall ring for a hint of depth (no busy tread).
+    ctx.strokeStyle = this.shadeColor(TRACTOR_WHEEL_COLOR, 0.22);
+    ctx.lineWidth = wr * 0.09;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.80, 0, Math.PI * 2);
+    ctx.stroke();
+    // Yellow hub.
+    ctx.fillStyle = TRACTOR_WHEEL_HUB;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.50, 0, Math.PI * 2);
+    ctx.fill();
+    // A few clean spokes (turn with the wheel).
+    ctx.strokeStyle = this.shadeColor(TRACTOR_WHEEL_HUB, -0.2);
+    ctx.lineWidth = Math.max(1.5, wr * 0.1);
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 5; k++) {
+      const a = wheelPhase + (k * Math.PI * 2) / 5;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx + Math.cos(a) * wr * 0.45, wy + Math.sin(a) * wr * 0.45);
+      ctx.stroke();
+    }
+    // Hub cap.
+    ctx.fillStyle = TRACTOR_DETAIL_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Side-view tractor drawn nose-to-the-right around (cx, cy). The tractor always
+  // faces right, so no rotation/mirroring is needed. Kept clean and uncluttered:
+  // solid body, simple wheels, subtle sheen and a framed cab window.
+  private drawTractorBody(cx: number, cy: number, s: number, wheelPhase: number, alpha: number): void {
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    const green = TRACTOR_BODY_COLOR;
+    const greenDark = TRACTOR_BODY_DARK;
+    const greenLight = this.shadeColor(green, 0.22);
+
+    const rwX = -0.15 * s, rwY = 0.16 * s, rwR = 0.26 * s; // rear wheel
+    const fwX = 0.32 * s, fwY = 0.26 * s, fwR = 0.16 * s;  // front wheel (edge = FRONT_LOCAL)
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(cx, cy);
+
+    // Wheels first so the body overlaps their tops (they peek out the bottom).
+    this.drawTractorWheel(rwX, rwY, rwR, wheelPhase);
+    this.drawTractorWheel(fwX, fwY, fwR, wheelPhase);
+
+    // Chassis bar linking the axles.
+    ctx.fillStyle = greenDark;
+    this.roundedRectPath(-0.14 * s, 0.10 * s, 0.50 * s, 0.09 * s, 0.03 * s);
+    ctx.fill();
+
+    // Engine hood (front), with a top sheen and a lower shade for roundness.
+    ctx.fillStyle = green;
+    this.roundedRectPath(0.04 * s, -0.04 * s, 0.39 * s, 0.18 * s, 0.05 * s);
+    ctx.fill();
+    ctx.fillStyle = greenLight;
+    this.roundedRectPath(0.06 * s, -0.04 * s, 0.34 * s, 0.04 * s, 0.02 * s);
+    ctx.fill();
+    ctx.fillStyle = greenDark;
+    this.roundedRectPath(0.06 * s, 0.10 * s, 0.35 * s, 0.04 * s, 0.02 * s);
+    ctx.fill();
+
+    // Grille panel at the nose and a round headlight with a glint.
+    ctx.fillStyle = greenDark;
+    this.roundedRectPath(0.38 * s, 0.0 * s, 0.05 * s, 0.12 * s, 0.018 * s);
+    ctx.fill();
+    ctx.fillStyle = TRACTOR_WHEEL_HUB;
+    ctx.beginPath();
+    ctx.arc(0.41 * s, -0.04 * s, 0.035 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.beginPath();
+    ctx.arc(0.40 * s, -0.052 * s, 0.012 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cab: a rounded-roof block over the rear.
+    ctx.fillStyle = TRACTOR_CAB_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-0.34 * s, 0.10 * s);
+    ctx.lineTo(-0.34 * s, -0.25 * s);
+    ctx.quadraticCurveTo(-0.34 * s, -0.34 * s, -0.25 * s, -0.34 * s);
+    ctx.lineTo(-0.06 * s, -0.34 * s);
+    ctx.quadraticCurveTo(0.03 * s, -0.33 * s, 0.05 * s, -0.18 * s);
+    ctx.lineTo(0.07 * s, 0.04 * s);
+    ctx.lineTo(0.0 * s, 0.10 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Window (framed light-blue glass) with a slanted windshield and a glint.
+    ctx.fillStyle = TRACTOR_WINDOW_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-0.30 * s, -0.27 * s);
+    ctx.lineTo(-0.07 * s, -0.27 * s);
+    ctx.quadraticCurveTo(0.0 * s, -0.26 * s, 0.02 * s, -0.12 * s);
+    ctx.lineTo(0.025 * s, -0.04 * s);
+    ctx.lineTo(-0.30 * s, -0.04 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+    ctx.beginPath();
+    ctx.moveTo(-0.25 * s, -0.25 * s);
+    ctx.lineTo(-0.18 * s, -0.25 * s);
+    ctx.lineTo(-0.26 * s, -0.06 * s);
+    ctx.lineTo(-0.30 * s, -0.06 * s);
+    ctx.closePath();
+    ctx.fill();
+    // Window divider post.
+    ctx.strokeStyle = TRACTOR_CAB_COLOR;
+    ctx.lineWidth = Math.max(1.5, s * 0.02);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-0.12 * s, -0.27 * s);
+    ctx.lineTo(-0.12 * s, -0.04 * s);
+    ctx.stroke();
+
+    // Exhaust stack with a flared cap, rising past the cab roof.
+    ctx.fillStyle = TRACTOR_DETAIL_COLOR;
+    ctx.fillRect(0.085 * s, -0.36 * s, 0.03 * s, 0.32 * s);
+    this.roundedRectPath(0.073 * s, -0.39 * s, 0.054 * s, 0.034 * s, 0.012 * s);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // The flatbed trailer the tractor tows. Drawn as a low deck so loaded balloons
+  // (painted earlier, in the balloon pass) sit visibly on top, cradled by the
+  // end boards.
+  private drawTrailer(
+    centerX: number,
+    surfaceY: number,
+    half: number,
+    s: number,
+    wheelPhase: number,
+    alpha: number,
+  ): void {
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Wheels under the bed (aligned to the same floor as the tractor).
+    this.drawTractorWheel(centerX - half * 0.45, surfaceY + 0.30 * s, 0.16 * s, wheelPhase);
+    this.drawTractorWheel(centerX + half * 0.45, surfaceY + 0.30 * s, 0.16 * s, wheelPhase);
+
+    // Deck (the platform balloons rest on).
+    ctx.fillStyle = TRACTOR_TRAILER_COLOR;
+    this.roundedRectPath(centerX - half, surfaceY, half * 2, 0.12 * s, 0.03 * s);
+    ctx.fill();
+    // Top-edge sheen and underside shading for a little depth.
+    ctx.fillStyle = this.shadeColor(TRACTOR_TRAILER_COLOR, 0.18);
+    this.roundedRectPath(centerX - half + 0.02 * s, surfaceY + 0.008 * s, half * 2 - 0.04 * s, 0.022 * s, 0.01 * s);
+    ctx.fill();
+    ctx.fillStyle = TRACTOR_TRAILER_DARK;
+    this.roundedRectPath(centerX - half, surfaceY + 0.07 * s, half * 2, 0.05 * s, 0.025 * s);
+    ctx.fill();
+    // Plank seams across the deck.
+    ctx.strokeStyle = TRACTOR_TRAILER_DARK;
+    ctx.lineWidth = Math.max(1, s * 0.008);
+    const planks = 5;
+    for (let i = 1; i < planks; i++) {
+      const px = centerX - half + (half * 2 * i) / planks;
+      ctx.beginPath();
+      ctx.moveTo(px, surfaceY + 0.012 * s);
+      ctx.lineTo(px, surfaceY + 0.105 * s);
+      ctx.stroke();
+    }
+
+    // Low end boards (stake posts) that cradle the cargo, each with a cap.
+    for (const ex of [centerX - half, centerX + half - 0.055 * s]) {
+      ctx.fillStyle = TRACTOR_TRAILER_DARK;
+      this.roundedRectPath(ex, surfaceY - 0.20 * s, 0.055 * s, 0.22 * s, 0.02 * s);
+      ctx.fill();
+      ctx.fillStyle = this.shadeColor(TRACTOR_TRAILER_COLOR, 0.1);
+      this.roundedRectPath(ex - 0.006 * s, surfaceY - 0.215 * s, 0.067 * s, 0.03 * s, 0.012 * s);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // The hitch bar linking the trailer's front board to the tractor's rear.
+  private drawDrawbar(tractor: TractorManager, s: number, alpha: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = TRACTOR_DETAIL_COLOR;
+    ctx.lineWidth = Math.max(2, s * 0.04);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(tractor.trailerCenterX + tractor.bedHalfWidth, tractor.bedSurfaceY + 0.05 * s);
+    ctx.lineTo(tractor.x - 0.34 * s, tractor.y + 0.12 * s);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawTractorButton(tractor: TractorManager): void {
+    if (tractor.isActive) return; // tractor is out — no button
+    const ctx = this.ctx;
+    const cx = tractor.buttonX;
+    const cy = tractor.buttonY;
+    const r = tractor.buttonRadius;
+    const available = tractor.isAvailable;
+
+    // Invite-to-tap pulse glow when available.
+    if (available) {
+      const pulse = tractor.buttonPulse;
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.35 * pulse;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.1 + 0.12 * pulse), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Button disc.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = available ? 'rgba(255, 255, 255, 0.9)' : 'rgba(214, 222, 230, 0.75)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.strokeStyle = available ? TRACTOR_BODY_DARK : 'rgba(120, 140, 160, 0.8)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Tractor icon inside (dimmed during cooldown), level and facing right.
+    this.drawTractorBody(cx - r * 0.12, cy + r * 0.1, r * 1.5, tractor.wheelPhase, available ? 1 : 0.4);
+
+    // Cooldown loading ring.
+    if (!available) {
+      const progress = tractor.cooldownProgress;
+      ctx.save();
+      ctx.lineWidth = Math.max(3, r * 0.12);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = TRACTOR_BODY_DARK;
       ctx.beginPath();
       ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
       ctx.stroke();

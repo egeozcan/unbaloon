@@ -536,4 +536,58 @@ export class AudioManager {
     noise.start(now);
     noise.stop(now + 0.25);
   }
+
+  // Putt-putt diesel chug as the tractor rolls on — lighter and quicker than the
+  // bulldozer's, with a brighter tremolo.
+  playTractorSpawn(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const lowpass = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(60, now);
+    osc.frequency.linearRampToValueAtTime(96, now + 0.4);
+    osc.frequency.linearRampToValueAtTime(82, now + 0.75);
+    // Brisk putt-putt tremolo.
+    lfo.type = 'square';
+    lfo.frequency.setValueAtTime(12, now);
+    lfo.frequency.linearRampToValueAtTime(16, now + 0.7);
+    lfoGain.gain.value = 0.08;
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 850;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.13, now + 0.1);
+    gain.gain.linearRampToValueAtTime(0, now + 0.8);
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+    osc.connect(lowpass);
+    lowpass.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    lfo.start(now);
+    osc.stop(now + 0.8);
+    lfo.stop(now + 0.8);
+  }
+
+  // Soft padded "thunk" as a balloon settles onto the trailer bed. Quiet, since
+  // it can fire repeatedly as the bed fills.
+  playTractorLoad(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(90, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.1, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.14);
+  }
 }

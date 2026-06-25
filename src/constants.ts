@@ -189,12 +189,6 @@ export const PLANE_WINDOW_COLOR = '#BFE3FF';
 export const PLANE_ACCENT_COLOR = '#FFD23C'; // yellow trim stripe
 export const PLANE_PROP_COLOR = '#2A2F38';
 
-// The three vehicle spawn buttons (helicopter, plane, bulldozer) form one
-// vertical column down the left edge; this is the centre-to-centre gap between
-// adjacent buttons. Wide enough that the generous (1.25×) touch targets never
-// overlap even when the radius is capped on large screens. See buttonLayout.ts.
-export const VEHICLE_BUTTON_GAP = 28; // CSS px vertical gap between adjacent buttons
-
 // ── Missiles (plane) ───────────────────────────────────────────────────────────
 export const MISSILE_FIRE_INTERVAL = 1.3; // seconds between launches
 export const MISSILE_SPEED = 175;         // CSS px/s — slow, deliberate
@@ -250,3 +244,36 @@ export const BULLDOZER_BLADE_DARK = '#6C757D';   // blade edge / shading
 export const BULLDOZER_TRACK_COLOR = '#33383F';  // rubber tracks
 export const BULLDOZER_WHEEL_COLOR = '#1F2329';  // wheel hubs
 export const BULLDOZER_DETAIL_COLOR = '#2A2F38'; // exhaust stack, panel lines
+
+// ── Tractor ──────────────────────────────────────────────────────────────────
+// A ground vehicle that trundles back and forth along the very bottom of the
+// screen towing a trailer. Floating balloons that touch the trailer (or are
+// dragged onto it) are loaded into the bed, where they ride along and lose a
+// layer every TRACTOR_PROCESS_INTERVAL until they pop.
+export const TRACTOR_LIFETIME = 30;   // seconds the tractor stays out
+export const TRACTOR_COOLDOWN = 35;   // seconds before it can be spawned again
+export const TRACTOR_SIZE_RATIO = 0.16; // tractor body length relative to screen width
+export const TRACTOR_MIN_SIZE = 84;     // CSS px floor so it stays visible
+export const TRACTOR_FADE_DURATION = 1.2; // seconds it fades out at end of life
+export const TRACTOR_SPEED = 130;       // CSS px/s — steady horizontal cruise
+export const TRACTOR_WHEEL_SPIN = 7;    // rad/s (visual wheel spin while moving)
+export const TRACTOR_EDGE_MARGIN = 6;   // CSS px from a wall where the rig reverses
+// Trailer geometry, relative to the tractor body length (size):
+export const TRACTOR_TRAILER_GAP_RATIO = 0.07;    // gap between tractor rear and trailer front
+export const TRACTOR_TRAILER_LENGTH_RATIO = 1.7;  // length of the trailer bed
+// How many balloons the bed holds at once; touching balloons are ignored when
+// full. Two is the most that sit clear of each other on the bed (the bed width
+// and balloon size both scale with screen width, so the ratio is fixed).
+export const TRACTOR_CAPACITY = 2;
+// Seconds a loaded balloon waits between losing each layer.
+export const TRACTOR_PROCESS_INTERVAL = 0.7;
+
+export const TRACTOR_BODY_COLOR = '#4CA33B';    // farm green
+export const TRACTOR_BODY_DARK = '#387D2C';     // shading / button outline
+export const TRACTOR_CAB_COLOR = '#5DB84A';     // lighter green cab
+export const TRACTOR_WINDOW_COLOR = '#BFE3FF';  // glass (matches the others)
+export const TRACTOR_WHEEL_COLOR = '#2A2F38';   // rubber tyres
+export const TRACTOR_WHEEL_HUB = '#F4C430';     // sunny yellow hubs
+export const TRACTOR_TRAILER_COLOR = '#D24F33'; // cheerful red trailer
+export const TRACTOR_TRAILER_DARK = '#A2371F';  // trailer shading / rails
+export const TRACTOR_DETAIL_COLOR = '#2A2F38';  // exhaust stack, panel lines

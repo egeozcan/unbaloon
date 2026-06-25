@@ -318,8 +318,10 @@ export class PlaneManager {
     const margin = 40;
     const next: Missile[] = [];
     for (const m of this.missiles) {
-      // Re-acquire a target if the current one has popped or drifted away.
-      if (!m.target || !m.target.hitTest(m.target.x, m.target.y)) {
+      // Re-acquire a target if the current one has popped, drifted away, or left
+      // the engageable set (e.g. the tractor scooped it onto its trailer) — else
+      // the missile would home forever on a balloon it can never detonate against.
+      if (!m.target || !m.target.hitTest(m.target.x, m.target.y) || !targets.some((t) => t === m.target)) {
         m.target = this.nearestTarget(targets, m.x, m.y);
       }
 

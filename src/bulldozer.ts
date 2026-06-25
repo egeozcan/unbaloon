@@ -30,6 +30,9 @@ export interface PushTarget {
   radiusX: number;
   radiusY: number;
   dragged: boolean;
+  // True once the tractor has claimed the balloon for its trailer. The bulldozer
+  // relinquishes such a balloon so the two vehicles never own it at once.
+  readonly loaded: boolean;
   hitTest(px: number, py: number): boolean;
 }
 
@@ -247,6 +250,13 @@ export class BulldozerManager {
     // self-heals instead of letting it drift out from under the blade.
     const stillCaught: PushTarget[] = [];
     for (const b of this.caught) {
+      // A balloon the tractor has loaded belongs solely to it now — drop it and
+      // clear our freeze so it isn't held by both vehicles (the tractor uses its
+      // own `loaded` flag to freeze it).
+      if (b.loaded) {
+        b.dragged = false;
+        continue;
+      }
       if (b.hitTest(b.x, b.y)) {
         b.dragged = true;
         stillCaught.push(b);
