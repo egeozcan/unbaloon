@@ -277,3 +277,38 @@ export const TRACTOR_WHEEL_HUB = '#F4C430';     // sunny yellow hubs
 export const TRACTOR_TRAILER_COLOR = '#D24F33'; // cheerful red trailer
 export const TRACTOR_TRAILER_DARK = '#A2371F';  // trailer shading / rails
 export const TRACTOR_DETAIL_COLOR = '#2A2F38';  // exhaust stack, panel lines
+
+// ── Rain cloud (effect) ────────────────────────────────────────────────────
+// The first "effect" power-up — the effect column lives on the RIGHT edge,
+// opposite the vehicle column. A storm cloud wanders left↔right near the top of
+// the screen with an organic random walk (it picks fresh drift targets at random
+// intervals rather than sweeping wall-to-wall like the tractor) and pours rain
+// over the balloons beneath it, slowing their rise for as long as they stay in
+// the downpour. It carries nothing, so when it fades the balloons recover on
+// their own.
+export const RAIN_LIFETIME = 30;   // seconds the cloud stays out
+export const RAIN_COOLDOWN = 35;   // seconds before it can be summoned again
+export const RAIN_SIZE_RATIO = 0.26;   // cloud body width relative to screen width
+export const RAIN_MIN_SIZE = 150;      // CSS px floor so it stays visible
+export const RAIN_FADE_DURATION = 1.2; // seconds it fades out at end of life (fade-in is a fixed 0.3s, as with the vehicles)
+export const RAIN_TOP_RATIO = 0.13;    // cloud centre rides this far down from the top
+export const RAIN_BODY_HALF_RATIO = 0.6; // cloud's drawn half-extent (lobes reach ~0.57·size); the wander band reserves this so the whole body stays on-screen
+export const RAIN_WANDER_SPEED = 70;   // CSS px/s — gentle horizontal drift speed
+export const RAIN_RETARGET_MIN = 0.7;  // seconds before it may pick a new drift target
+export const RAIN_RETARGET_MAX = 1.9;
+export const RAIN_EDGE_MARGIN = 8;     // CSS px the cloud keeps clear of the side walls
+export const RAIN_BOB_AMPLITUDE = 5;   // CSS px gentle vertical bob
+export const RAIN_BOB_FREQUENCY = 0.5; // Hz
+// Rain effect on balloons:
+export const RAIN_SLOW_FACTOR = 0.35;  // balloons under the rain rise at 35% speed
+export const RAIN_SLOW_RECOVERY = 1.4; // per-second return of the slow factor to 1 once clear of the rain
+export const RAIN_BAND_WIDTH_RATIO = 0.82; // rain column width relative to cloud width
+// Falling raindrops (purely visual — drawn procedurally from the cloud's anim clock):
+export const RAIN_DROP_COUNT = 30;     // streaks in flight under the cloud
+export const RAIN_DROP_SPEED = 540;    // CSS px/s fall speed
+export const RAIN_DROP_LENGTH = 15;    // CSS px streak length
+
+export const RAIN_CLOUD_COLOR = '#9FB1C4'; // soft grey-blue cloud body
+export const RAIN_CLOUD_LIGHT = '#EAF1F7'; // sunlit cloud top
+export const RAIN_CLOUD_DARK = '#6B7C90';  // cloud shading / outline / button ring
+export const RAIN_DROP_COLOR = '#5FB0E6';  // cheerful rain blue

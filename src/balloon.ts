@@ -24,6 +24,8 @@ import {
   SPECIAL_CAT_COLOR,
   SPECIAL_FROG_COLOR,
   SPECIAL_BIRD_COLOR,
+  RAIN_SLOW_FACTOR,
+  RAIN_SLOW_RECOVERY,
 } from './constants';
 
 export type BalloonState = 'floating' | 'squeezing' | 'popping' | 'dead';
@@ -57,6 +59,12 @@ export class Balloon {
   // while it is processed, and excluded from every other interaction (player
   // taps/drags and the other vehicles all skip a loaded balloon).
   loaded: boolean = false;
+
+  // Rise-speed multiplier (1 = full speed). The rain cloud drives this down toward
+  // RAIN_SLOW_FACTOR each frame a balloon sits in its downpour; it recovers back to
+  // 1 on its own once clear, so the slow is purely transient (no cloud ↔ balloon
+  // ownership needed). See RainCloudManager.
+  rainSlow: number = 1;
 
   // Special type / finale
   specialType?: SpecialType;
@@ -139,6 +147,13 @@ export class Balloon {
     return !this.specialType && !this.isFinale;
   }
 
+  // The rain cloud calls this each frame a balloon is in its downpour, nudging the
+  // rise-speed multiplier down to the slow floor. Only ever slows (never speeds),
+  // so overlapping calls are harmless; recovery happens in the per-frame update.
+  applyRainSlow(): void {
+    this.rainSlow = Math.min(this.rainSlow, RAIN_SLOW_FACTOR);
+  }
+
   hitTest(px: number, py: number): boolean {
     if (this.state !== 'floating' && this.state !== 'squeezing') return false;
     // Ellipse hit test: ((px-cx)/rx)^2 + ((py-cy)/ry)^2 <= 1
@@ -207,23 +222,37 @@ export class Balloon {
       if (this.isFinale && this.y <= this.screenHeight / 2) {
         this.y = this.screenHeight / 2;
       } else {
-        this.y -= this.speed * dt;
+        this.y -= this.speed * this.rainSlow * dt;
       }
       this.swayTime += dt;
       this.x = this.baseX + Math.sin(this.swayTime * SWAY_FREQUENCY * Math.PI * 2 + this.swayOffset) * SWAY_AMPLITUDE;
     }
+    this.recoverRainSlow(dt);
     this.scaleX = 1;
     this.scaleY = 1;
     this.animTime += dt;
   }
 
+  // Ease the rain slow factor back to full speed. Run AFTER the move so the value
+  // the cloud last set is the one actually integrated this frame — otherwise a
+  // balloon under continuous rain would move at 0.35 + recovery·dt (frame-rate
+  // dependent) instead of exactly RAIN_SLOW_FACTOR. The cloud re-applies the slow
+  // each frame it stays in the downpour (see RainCloudManager.rainOn), so recovery
+  // only actually takes hold once the balloon drifts clear or the cloud fades.
+  private recoverRainSlow(dt: number): void {
+    if (this.rainSlow < 1) {
+      this.rainSlow = Math.min(1, this.rainSlow + RAIN_SLOW_RECOVERY * dt);
+    }
+  }
+
   private updateSqueeze(dt: number): void {
     // Also keep floating during squeeze (unless dragged or loaded on the trailer)
     if (!this.dragged && !this.loaded) {
-      this.y -= this.speed * dt;
+      this.y -= this.speed * this.rainSlow * dt;
       this.swayTime += dt;
       this.x = this.baseX + Math.sin(this.swayTime * SWAY_FREQUENCY * Math.PI * 2 + this.swayOffset) * SWAY_AMPLITUDE;
     }
+    this.recoverRainSlow(dt); // after the move — see updateFloating
 
     this.squeezeTimer += dt;
     const t = Math.min(this.squeezeTimer / SQUEEZE_DURATION, 1);

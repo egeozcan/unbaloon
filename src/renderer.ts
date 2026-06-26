@@ -48,6 +48,13 @@ import {
   TRACTOR_TRAILER_COLOR,
   TRACTOR_TRAILER_DARK,
   TRACTOR_DETAIL_COLOR,
+  RAIN_CLOUD_COLOR,
+  RAIN_CLOUD_LIGHT,
+  RAIN_CLOUD_DARK,
+  RAIN_DROP_COLOR,
+  RAIN_DROP_COUNT,
+  RAIN_DROP_SPEED,
+  RAIN_DROP_LENGTH,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
 import type { ActiveEvent, Bubble } from './surprise';
@@ -55,6 +62,7 @@ import type { Dart, HelicopterManager } from './helicopter';
 import type { Missile, PlaneManager } from './plane';
 import type { BulldozerManager } from './bulldozer';
 import type { TractorManager } from './tractor';
+import type { RainCloudManager } from './raincloud';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -1612,6 +1620,176 @@ export class Renderer {
       ctx.lineWidth = Math.max(3, r * 0.12);
       ctx.lineCap = 'round';
       ctx.strokeStyle = TRACTOR_BODY_DARK;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ── Rain cloud (effect), falling rain, spawn button ──────────────────────────
+
+  drawRainCloud(rain: RainCloudManager): void {
+    const alpha = rain.alpha;
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // Rain first so the cloud body sits over the top of the streaks.
+    this.drawRainfall(rain, alpha);
+    this.drawCloudShape(rain.x, rain.y, rain.size);
+    ctx.restore();
+  }
+
+  // Procedural downpour: a fixed set of streaks falling within the rain column,
+  // their positions derived from the cloud's anim clock so no per-drop state is
+  // stored. Clipped to the band below the cloud base.
+  private drawRainfall(rain: RainCloudManager, alpha: number): void {
+    const ctx = this.ctx;
+    const cx = rain.x;
+    const half = rain.rainHalfWidth;
+    const top = rain.cloudBaseY;
+    const bottom = rain.fallBottomY;
+    const span = bottom - top;
+    if (span <= 0) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cx - half, top, half * 2, span);
+    ctx.clip();
+    ctx.strokeStyle = RAIN_DROP_COLOR;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.globalAlpha = alpha * 0.65;
+    for (let i = 0; i < RAIN_DROP_COUNT; i++) {
+      const dx = cx - half + this.hash01(i) * half * 2;
+      // Each streak loops down the band at a steady rate, offset per-drop so they
+      // never fall in lockstep. The +DROP_LENGTH padding lets a drop slide fully
+      // off the bottom before re-entering at the top.
+      const cycle = span + RAIN_DROP_LENGTH;
+      const phase = (rain.animTime * RAIN_DROP_SPEED + this.hash01(i + 101) * cycle) % cycle;
+      const dy = top - RAIN_DROP_LENGTH + phase;
+      ctx.beginPath();
+      ctx.moveTo(dx, dy);
+      ctx.lineTo(dx - RAIN_DROP_LENGTH * 0.16, dy + RAIN_DROP_LENGTH);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // A friendly puffy cloud, centred at (cx, cy) spanning width `w`. A union of
+  // lobes filled with one top-lit gradient, a softer flat underside, and a faint
+  // outline. Used for both the sky cloud and (smaller) the spawn-button icon.
+  private drawCloudShape(cx: number, cy: number, w: number): void {
+    const ctx = this.ctx;
+    // Lobes as fractions of width — a lumpy top over a flatter base.
+    const lobes = [
+      { dx: -0.34, dy: 0.06, r: 0.22 },
+      { dx: -0.13, dy: -0.10, r: 0.27 },
+      { dx: 0.12, dy: -0.13, r: 0.26 },
+      { dx: 0.34, dy: 0.02, r: 0.23 },
+      { dx: 0.04, dy: 0.14, r: 0.27 },
+      { dx: -0.20, dy: 0.16, r: 0.22 },
+    ];
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    const path = new Path2D();
+    for (const l of lobes) {
+      path.addPath(this.circlePath(l.dx * w, l.dy * w, l.r * w));
+    }
+
+    // Soft drop shadow under the cloud for a touch of depth.
+    ctx.save();
+    ctx.shadowColor = 'rgba(60, 80, 100, 0.28)';
+    ctx.shadowBlur = w * 0.06;
+    ctx.shadowOffsetY = w * 0.04;
+    ctx.fillStyle = RAIN_CLOUD_COLOR;
+    ctx.fill(path);
+    ctx.restore();
+
+    // Top-lit volume gradient. Filling the unioned lobe path (not stroking each
+    // lobe) keeps a smooth puffy silhouette — stroking would draw every lobe's
+    // full circle, including the arcs buried inside the cloud, reading as rings.
+    const grad = ctx.createLinearGradient(0, -w * 0.34, 0, w * 0.34);
+    grad.addColorStop(0, RAIN_CLOUD_LIGHT);
+    grad.addColorStop(0.55, RAIN_CLOUD_COLOR);
+    grad.addColorStop(1, this.shadeColor(RAIN_CLOUD_COLOR, -0.16));
+    ctx.fillStyle = grad;
+    ctx.fill(path);
+
+    ctx.restore();
+  }
+
+  private circlePath(cx: number, cy: number, r: number): Path2D {
+    const p = new Path2D();
+    p.arc(cx, cy, r, 0, Math.PI * 2);
+    return p;
+  }
+
+  // Stable [0,1) pseudo-random from an integer — keeps the raindrops deterministic
+  // per frame (their motion comes only from the anim clock, not fresh randomness).
+  private hash01(i: number): number {
+    const x = Math.sin(i * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  drawRainCloudButton(rain: RainCloudManager): void {
+    if (rain.isActive) return; // cloud is out — no button
+    const ctx = this.ctx;
+    const cx = rain.buttonX;
+    const cy = rain.buttonY;
+    const r = rain.buttonRadius;
+    const available = rain.isAvailable;
+
+    // Invite-to-tap pulse glow when available.
+    if (available) {
+      const pulse = rain.buttonPulse;
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.35 * pulse;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.1 + 0.12 * pulse), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Button disc.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = available ? 'rgba(255, 255, 255, 0.9)' : 'rgba(214, 222, 230, 0.75)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.strokeStyle = available ? RAIN_CLOUD_DARK : 'rgba(120, 140, 160, 0.8)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Cloud icon + a few drops inside (dimmed during cooldown).
+    ctx.save();
+    ctx.globalAlpha = available ? 1 : 0.4;
+    this.drawCloudShape(cx, cy - r * 0.22, r * 1.4);
+    ctx.strokeStyle = RAIN_DROP_COLOR;
+    ctx.lineWidth = Math.max(2, r * 0.07);
+    ctx.lineCap = 'round';
+    for (let k = -1; k <= 1; k++) {
+      const dx = cx + k * r * 0.34;
+      const dy0 = cy + r * 0.34;
+      ctx.beginPath();
+      ctx.moveTo(dx, dy0);
+      ctx.lineTo(dx - r * 0.06, dy0 + r * 0.3);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Cooldown loading ring.
+    if (!available) {
+      const progress = rain.cooldownProgress;
+      ctx.save();
+      ctx.lineWidth = Math.max(3, r * 0.12);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = RAIN_CLOUD_DARK;
       ctx.beginPath();
       ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
       ctx.stroke();

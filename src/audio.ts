@@ -590,4 +590,48 @@ export class AudioManager {
     osc.start(now);
     osc.stop(now + 0.14);
   }
+
+  // Rain cloud summon: a low thunder rumble under a soft swelling rain hiss.
+  playRainSpawn(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+
+    // Rain hiss: band-passed white noise that swells in and settles to a patter.
+    const dur = 0.9;
+    const bufferSize = Math.ceil(ctx.sampleRate * dur);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 1700;
+    bandpass.Q.value = 0.5;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.0001, now);
+    noiseGain.gain.linearRampToValueAtTime(0.11, now + 0.25);
+    noiseGain.gain.linearRampToValueAtTime(0.05, now + dur);
+    noise.connect(bandpass);
+    bandpass.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + dur);
+
+    // Low thunder rumble.
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(72, now);
+    osc.frequency.exponentialRampToValueAtTime(44, now + 0.6);
+    oscGain.gain.setValueAtTime(0.0001, now);
+    oscGain.gain.linearRampToValueAtTime(0.17, now + 0.12);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.72);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.72);
+  }
 }

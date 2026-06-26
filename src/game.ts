@@ -7,6 +7,7 @@ import { HelicopterManager } from './helicopter';
 import { PlaneManager } from './plane';
 import { BulldozerManager } from './bulldozer';
 import { TractorManager } from './tractor';
+import { RainCloudManager } from './raincloud';
 import {
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
@@ -46,6 +47,7 @@ export class Game {
   private plane: PlaneManager;
   private bulldozer: BulldozerManager;
   private tractor: TractorManager;
+  private rainCloud: RainCloudManager;
   private previousPhase: Phase = 1;
 
   // Surprise counter
@@ -72,6 +74,7 @@ export class Game {
     this.plane = new PlaneManager();
     this.bulldozer = new BulldozerManager();
     this.tractor = new TractorManager();
+    this.rainCloud = new RainCloudManager();
   }
 
   start(): void {
@@ -173,6 +176,10 @@ export class Game {
       () => this.audio.playTractorLoad(),
     );
 
+    // Update rain cloud: wanders near the top and slows any balloon caught in its
+    // downpour (it claims no balloon — slowed ones recover once they drift clear).
+    this.rainCloud.update(dt, this.balloons);
+
     // Update surprise events
     this.surprise.update(dt);
 
@@ -219,6 +226,10 @@ export class Game {
     this.renderer.drawMissiles(this.plane.missiles);
     this.renderer.drawPlane(this.plane);
 
+    // Rain cloud weather sits in front of the play area — the downpour streaks
+    // read clearly over the balloons it is slowing.
+    this.renderer.drawRainCloud(this.rainCloud);
+
     // Surprise events above balloons (bubbles)
     if (event) {
       this.renderer.drawSurpriseEventAbove(event);
@@ -236,6 +247,8 @@ export class Game {
       this.renderer.drawPlaneButton(this.plane);
       this.renderer.drawBulldozerButton(this.bulldozer);
       this.renderer.drawTractorButton(this.tractor);
+      // Effect buttons live on the opposite (right) edge.
+      this.renderer.drawRainCloudButton(this.rainCloud);
     }
 
     // Finale fade overlay
@@ -349,6 +362,10 @@ export class Game {
       }
       if (this.tractor.trySpawn(x, y)) {
         this.audio.playTractorSpawn();
+        return;
+      }
+      if (this.rainCloud.trySpawn(x, y)) {
+        this.audio.playRainSpawn();
         return;
       }
       if (this.helicopter.tryGrab(id, x, y)) {
@@ -476,6 +493,7 @@ export class Game {
     this.plane.clear();
     this.bulldozer.clear();
     this.tractor.clear();
+    this.rainCloud.clear();
   }
 
   private updateFinale(dt: number): void {
@@ -553,6 +571,8 @@ export class Game {
     this.bulldozer.setScreenSize(this.width, this.height);
     this.tractor.reset();
     this.tractor.setScreenSize(this.width, this.height);
+    this.rainCloud.reset();
+    this.rainCloud.setScreenSize(this.width, this.height);
     this.focusX = this.width / 2;
     this.focusY = this.height / 2;
     this.session.reset();
@@ -645,5 +665,6 @@ export class Game {
     this.plane.setScreenSize(this.width, this.height);
     this.bulldozer.setScreenSize(this.width, this.height);
     this.tractor.setScreenSize(this.width, this.height);
+    this.rainCloud.setScreenSize(this.width, this.height);
   }
 }
