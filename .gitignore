@@ -12,3 +12,6 @@ yarn-error.log*
 .vscode/*
 .idea/
 .DS_Store
+
+# Claude Code scratch memory
+/memory
