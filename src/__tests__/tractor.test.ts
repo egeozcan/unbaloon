@@ -3,6 +3,7 @@ import { TractorManager, LoadTarget } from '../tractor';
 import { HelicopterManager } from '../helicopter';
 import { PlaneManager } from '../plane';
 import { BulldozerManager } from '../bulldozer';
+import { ExcavatorManager } from '../excavator';
 import { Balloon } from '../balloon';
 import {
   TRACTOR_LIFETIME,
@@ -138,7 +139,7 @@ describe('TractorManager', () => {
       expect(plane.buttonY).toBeGreaterThan(heli.buttonY);
     });
 
-    it('keeps all four button touch targets from overlapping on any screen', () => {
+    it('keeps all five button touch targets from overlapping on any screen', () => {
       for (const [w, h] of [[375, 667], [800, 600], [1400, 1024], [320, 480], [480, 300]]) {
         const buttons = makeAllButtons(w, h);
         for (let i = 0; i < buttons.length; i++) {
@@ -153,7 +154,7 @@ describe('TractorManager', () => {
       }
     });
 
-    it('keeps all four buttons fully on-screen, including short/landscape viewports', () => {
+    it('keeps all five buttons fully on-screen, including short/landscape viewports', () => {
       for (const [w, h] of [[667, 375], [568, 320], [812, 375], [844, 390], [375, 667], [320, 480], [480, 300], [400, 300]]) {
         for (const btn of makeAllButtons(w, h)) {
           const reach = btn.r * 1.25; // touch target must stay within the viewport
@@ -363,7 +364,7 @@ describe('TractorManager', () => {
   });
 });
 
-// Build the four vehicle spawn buttons at a given viewport for placement checks.
+// Build the five vehicle spawn buttons at a given viewport for placement checks.
 function makeAllButtons(w: number, h: number): Array<{ x: number; y: number; r: number }> {
   const heli = new HelicopterManager();
   heli.setScreenSize(w, h);
@@ -373,10 +374,13 @@ function makeAllButtons(w: number, h: number): Array<{ x: number; y: number; r: 
   dozer.setScreenSize(w, h);
   const tractor = new TractorManager();
   tractor.setScreenSize(w, h);
+  const excavator = new ExcavatorManager();
+  excavator.setScreenSize(w, h);
   return [
     { x: heli.buttonX, y: heli.buttonY, r: heli.buttonRadius },
     { x: plane.buttonX, y: plane.buttonY, r: plane.buttonRadius },
     { x: dozer.buttonX, y: dozer.buttonY, r: dozer.buttonRadius },
     { x: tractor.buttonX, y: tractor.buttonY, r: tractor.buttonRadius },
+    { x: excavator.buttonX, y: excavator.buttonY, r: excavator.buttonRadius },
   ];
 }

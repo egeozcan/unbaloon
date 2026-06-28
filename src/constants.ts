@@ -313,17 +313,19 @@ export const RAIN_CLOUD_LIGHT = '#EAF1F7'; // sunlit cloud top
 export const RAIN_CLOUD_DARK = '#6B7C90';  // cloud shading / outline / button ring
 export const RAIN_DROP_COLOR = '#5FB0E6';  // cheerful rain blue
 
-// ── Excavator (pairs with the rain cloud) ──────────────────────────────────────
-// A ground machine that appears beneath an active rain cloud, trundles along the
-// floor to stay under the downpour, and reaches up with an articulated arm to
-// pluck the rain-slowed balloons out of the column and chomp them with its bucket.
-// It has no spawn button or cooldown of its own — it lives and dies with the cloud
-// above it (alpha, on/off and horizontal position all follow the cloud).
+// ── Excavator (independent ground vehicle) ─────────────────────────────────────
+// A tracked digger summoned from its own button (the 5th in the left vehicle
+// column). It trundles along the floor to position itself beneath the nearest
+// reachable balloon, then reaches up with a two-segment articulated arm to grab it
+// and chomp it with the bucket — roaming and working on its own, like the dozer.
+export const EXCAVATOR_LIFETIME = 30;   // seconds the excavator stays out
+export const EXCAVATOR_COOLDOWN = 35;   // seconds before it can be summoned again
+export const EXCAVATOR_FADE_DURATION = 1.2; // seconds it fades out at end of life
 export const EXCAVATOR_SIZE_RATIO = 0.18;   // body length relative to screen width
 export const EXCAVATOR_MIN_SIZE = 92;       // CSS px floor so it stays visible
-export const EXCAVATOR_DRIVE_SPEED = 230;   // CSS px/s — how fast the base chases the cloud's x
+export const EXCAVATOR_DRIVE_SPEED = 230;   // CSS px/s — how fast the base chases its target's x
 export const EXCAVATOR_GROUND_LOCAL = 0.42; // body centre sits this×size above the screen bottom
-export const EXCAVATOR_BODY_HALF_RATIO = 0.46; // half the track footprint; the wander/clamp keeps this on-screen
+export const EXCAVATOR_BODY_HALF_RATIO = 0.46; // half the track footprint; the drive/clamp keeps this on-screen
 // Articulated arm, in body-length (size) fractions:
 export const EXCAVATOR_BOOM_RATIO = 1.18;   // boom (first arm segment) length
 export const EXCAVATOR_STICK_RATIO = 1.0;   // stick (second arm segment) length

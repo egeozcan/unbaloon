@@ -1820,11 +1820,24 @@ export class Renderer {
     const ctx = this.ctx;
     ctx.save();
     ctx.globalAlpha = alpha;
-    const s = ex.size;
-    this.drawExcavatorTracks(ex.x, ex.y, s, ex.trackPhase);
-    this.drawExcavatorCab(ex.x, ex.y, s);
-    this.drawExcavatorArm(ex, s);
+    this.drawExcavatorRig(
+      ex.x, ex.y, ex.size, ex.trackPhase,
+      ex.shoulderX, ex.shoulderY, ex.elbowX, ex.elbowY, ex.bucketX, ex.bucketY,
+      ex.bucketAngle, ex.chompPulse,
+    );
     ctx.restore();
+  }
+
+  // Draw the whole rig — tracks + cab + arm — from explicit base centre and world
+  // joint positions, so both the live excavator and its button icon share it.
+  private drawExcavatorRig(
+    cx: number, cy: number, s: number, trackPhase: number,
+    sx: number, sy: number, elx: number, ely: number, bx: number, by: number,
+    bucketAngle: number, chompPulse: number,
+  ): void {
+    this.drawExcavatorTracks(cx, cy, s, trackPhase);
+    this.drawExcavatorCab(cx, cy, s);
+    this.drawExcavatorArm(s, sx, sy, elx, ely, bx, by, bucketAngle, chompPulse);
   }
 
   private drawExcavatorWheel(wx: number, wy: number, wr: number, phase: number): void {
@@ -1948,14 +1961,12 @@ export class Renderer {
 
   // Boom (shoulder → elbow) and stick (elbow → bucket), each a tapered plate with a
   // dark outline, plus joint pivots, a couple of hydraulic cylinders, and the bucket.
-  private drawExcavatorArm(ex: ExcavatorManager, s: number): void {
+  private drawExcavatorArm(
+    s: number,
+    sx: number, sy: number, elx: number, ely: number, bx: number, by: number,
+    bucketAngle: number, chompPulse: number,
+  ): void {
     const ctx = this.ctx;
-    const sx = ex.shoulderX;
-    const sy = ex.shoulderY;
-    const elx = ex.elbowX;
-    const ely = ex.elbowY;
-    const bx = ex.bucketX;
-    const by = ex.bucketY;
 
     // Hydraulic cylinders first, so the plates overlap their ends.
     ctx.strokeStyle = EXCAVATOR_DETAIL_COLOR;
@@ -1975,7 +1986,7 @@ export class Renderer {
     this.drawArmPivot(sx, sy, 0.075 * s);
     this.drawArmPivot(elx, ely, 0.065 * s);
 
-    this.drawExcavatorBucket(ex, s);
+    this.drawExcavatorBucket(s, bx, by, bucketAngle, chompPulse);
   }
 
   // A tapered arm plate from (x1,y1) width w1 to (x2,y2) width w2, dark outline
@@ -2020,14 +2031,14 @@ export class Renderer {
 
   // The steel scoop at the stick tip — opens downward to bite a balloon from above,
   // tilting toward the stick for a natural wrist and curling in on each chomp.
-  private drawExcavatorBucket(ex: ExcavatorManager, s: number): void {
+  private drawExcavatorBucket(s: number, bx: number, by: number, bucketAngle: number, chompPulse: number): void {
     const ctx = this.ctx;
     const w = 0.34 * s;
     const h = 0.32 * s;
-    const tilt = (ex.bucketAngle - Math.PI / 2) * 0.3 - 0.3 * ex.chompPulse;
+    const tilt = (bucketAngle - Math.PI / 2) * 0.3 - 0.3 * chompPulse;
 
     ctx.save();
-    ctx.translate(ex.bucketX, ex.bucketY);
+    ctx.translate(bx, by);
     ctx.rotate(tilt);
 
     // Scoop body, opening downward.
@@ -2068,6 +2079,67 @@ export class Renderer {
     }
 
     ctx.restore();
+  }
+
+  drawExcavatorButton(ex: ExcavatorManager): void {
+    if (ex.isActive) return; // excavator is out — no button
+    const ctx = this.ctx;
+    const cx = ex.buttonX;
+    const cy = ex.buttonY;
+    const r = ex.buttonRadius;
+    const available = ex.isAvailable;
+
+    // Invite-to-tap pulse glow when available.
+    if (available) {
+      const pulse = ex.buttonPulse;
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.35 * pulse;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.1 + 0.12 * pulse), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Button disc.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = available ? 'rgba(255, 255, 255, 0.9)' : 'rgba(214, 222, 230, 0.75)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.strokeStyle = available ? EXCAVATOR_BODY_DARK : 'rgba(120, 140, 160, 0.8)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Excavator icon inside (dimmed during cooldown): the rig with its arm raised in
+    // a compact, parked pose that fits the disc.
+    const si = r * 1.16;
+    const icy = cy + r * 0.16;
+    const sx = cx - 0.04 * si;
+    const sy = icy - 0.18 * si;
+    const elx = cx + 0.24 * si;
+    const ely = icy - 0.64 * si;
+    const bx = cx + 0.50 * si;
+    const by = icy - 0.18 * si;
+    const ba = Math.atan2(by - ely, bx - elx);
+    ctx.save();
+    ctx.globalAlpha = available ? 1 : 0.4;
+    this.drawExcavatorRig(cx, icy, si, 0, sx, sy, elx, ely, bx, by, ba, 0);
+    ctx.restore();
+
+    // Cooldown loading ring.
+    if (!available) {
+      const progress = ex.cooldownProgress;
+      ctx.save();
+      ctx.lineWidth = Math.max(3, r * 0.12);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = EXCAVATOR_BODY_DARK;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
 }

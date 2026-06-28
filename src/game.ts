@@ -183,12 +183,11 @@ export class Game {
     // downpour (it claims no balloon — slowed ones recover once they drift clear).
     this.rainCloud.update(dt, this.balloons);
 
-    // Update excavator: lives under the rain cloud, trundling along the floor to
-    // stay beneath it and reaching up to grab rain-slowed balloons and chomp them.
-    // It claims the balloon it holds (via `loaded`), so it draws from the free pool.
+    // Update excavator: an autonomous digger that trundles along the floor, drives
+    // in under the nearest reachable balloon and chomps it with its bucket. It
+    // claims the balloon it holds (via `loaded`), so it draws from the free pool.
     this.excavator.update(
       dt,
-      this.rainCloud,
       freeBalloons,
       (b) => this.chompBalloon(b),
       () => this.audio.playExcavatorGrab(),
@@ -233,8 +232,8 @@ export class Game {
     this.renderer.drawTractor(this.tractor);
 
     // Excavator is a ground vehicle as well — drawn over the balloons so its arm
-    // and bucket read against the balloon it's gripping (alpha 0 when no cloud is
-    // out, so it simply doesn't draw then).
+    // and bucket read against the balloon it's gripping (alpha 0 when not out, so it
+    // simply doesn't draw then).
     this.renderer.drawExcavator(this.excavator);
 
     // Darts and helicopter ride above the balloons
@@ -266,6 +265,7 @@ export class Game {
       this.renderer.drawPlaneButton(this.plane);
       this.renderer.drawBulldozerButton(this.bulldozer);
       this.renderer.drawTractorButton(this.tractor);
+      this.renderer.drawExcavatorButton(this.excavator);
       // Effect buttons live on the opposite (right) edge.
       this.renderer.drawRainCloudButton(this.rainCloud);
     }
@@ -389,6 +389,10 @@ export class Game {
       }
       if (this.tractor.trySpawn(x, y)) {
         this.audio.playTractorSpawn();
+        return;
+      }
+      if (this.excavator.trySpawn(x, y)) {
+        this.audio.playExcavatorSpawn();
         return;
       }
       if (this.rainCloud.trySpawn(x, y)) {

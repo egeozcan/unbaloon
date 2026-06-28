@@ -1,4 +1,7 @@
 import {
+  EXCAVATOR_LIFETIME,
+  EXCAVATOR_COOLDOWN,
+  EXCAVATOR_FADE_DURATION,
   EXCAVATOR_SIZE_RATIO,
   EXCAVATOR_MIN_SIZE,
   EXCAVATOR_DRIVE_SPEED,
@@ -14,6 +17,9 @@ import {
   EXCAVATOR_GRAB_RISE,
   EXCAVATOR_CHOMP_INTERVAL,
 } from './constants';
+import { vehicleButtonRadius, vehicleButtonX, vehicleButtonY } from './buttonLayout';
+
+export type ExcavatorState = 'idle' | 'active' | 'cooldown';
 
 // The slice of a balloon the excavator needs. Balloon satisfies this structurally,
 // so the manager stays decoupled and unit-testable with fakes. Like the tractor the
@@ -35,27 +41,16 @@ export interface GrabTarget {
   hitTest(px: number, py: number): boolean;
 }
 
-// What the excavator reads off the rain cloud it lives under. RainCloudManager
-// satisfies this structurally (all getters), so the two stay decoupled: the
-// excavator follows the cloud's x, fades with its alpha, switches on/off with its
-// active flag, and only grabs balloons inside the downpour column below the base.
-export interface DownpourSource {
-  readonly isActive: boolean;
-  readonly alpha: number;
-  readonly x: number;
-  readonly rainHalfWidth: number;
-  readonly cloudBaseY: number;
-}
-
-// A digger that trundles along the floor beneath an active rain cloud, reaching up
-// with a two-segment arm to pluck rain-slowed balloons from the column and chomp
-// them with its bucket. It owns no state machine of its own — `active`/`alpha`/`x`
-// all track the cloud passed to update().
+// An autonomous tracked digger: summoned from its own button, it trundles along the
+// floor to get beneath the nearest reachable balloon, reaches up with a two-segment
+// arm to grab it, hauls it aloft and chomps it with the bucket until it pops, then
+// moves on to the next — roaming and working on its own, like the bulldozer.
 export class ExcavatorManager {
-  // Body centre x (chases the cloud). alpha mirrors the cloud's fade.
+  state: ExcavatorState = 'idle';
+
+  // Body centre x (chases its target). trackPhase animates the rolling tracks.
   x: number = 0;
-  alpha: number = 0;
-  trackPhase: number = 0; // animates the rolling tracks (advances only while driving)
+  trackPhase: number = 0;
 
   // Arm joint positions in world space, recomputed each frame by the IK solver and
   // read by the renderer. The bucket sits at (bucketX, bucketY).
@@ -72,9 +67,11 @@ export class ExcavatorManager {
   private tipX: number = 0; // eased bucket-tip goal tracker (world space)
   private tipY: number = 0;
   private animTime: number = 0;
-  private wasActive: boolean = false;
+  private lifeTimer: number = 0;
+  private cooldownTimer: number = 0;
 
-  // The balloon currently clamped in the bucket, and the chomp-bite timer.
+  // The balloon currently clamped in the bucket, the one being approached, and the
+  // chomp-bite timer.
   private held: GrabTarget | null = null;
   private target: GrabTarget | null = null;
   private crushTimer: number = 0;
@@ -85,7 +82,7 @@ export class ExcavatorManager {
   setScreenSize(width: number, height: number): void {
     this.screenWidth = width;
     this.screenHeight = height;
-    if (this.wasActive) {
+    if (this.state === 'active') {
       this.x = this.clampX(this.x); // keep the body on-screen after a resize / rotation
       // A held balloon keeps its haul pose and chomp cadence across a resize; only
       // re-fold the arm when it's empty (the bucket would otherwise jump to rest).
@@ -124,10 +121,6 @@ export class ExcavatorManager {
     return this.boomLen + this.stickLen;
   }
 
-  get isActive(): boolean {
-    return this.wasActive;
-  }
-
   private get bodyHalf(): number {
     return this.size * EXCAVATOR_BODY_HALF_RATIO;
   }
@@ -139,6 +132,73 @@ export class ExcavatorManager {
     const right = this.screenWidth - this.bodyHalf;
     if (right <= left) return this.screenWidth / 2; // body wider than the viewport — centre it
     return Math.max(left, Math.min(right, x));
+  }
+
+  // ── Spawn button (5th in the shared left-edge column) ──────────────────────
+
+  get buttonRadius(): number {
+    return vehicleButtonRadius(this.screenWidth, this.screenHeight);
+  }
+
+  get buttonX(): number {
+    return vehicleButtonX(this.screenWidth, this.screenHeight);
+  }
+
+  get buttonY(): number {
+    return vehicleButtonY(4, this.screenWidth, this.screenHeight);
+  }
+
+  // Fade in on spawn, fade out at end of life.
+  get alpha(): number {
+    if (this.state !== 'active') return 0;
+    const fadeIn = Math.min(1, this.lifeTimer / 0.3);
+    const remaining = EXCAVATOR_LIFETIME - this.lifeTimer;
+    const fadeOut = Math.min(1, remaining / EXCAVATOR_FADE_DURATION);
+    return Math.max(0, Math.min(fadeIn, fadeOut));
+  }
+
+  // 0 → 1 as the cooldown completes (for the button's loading ring).
+  get cooldownProgress(): number {
+    if (this.state !== 'cooldown') return 1;
+    return Math.min(1, this.cooldownTimer / EXCAVATOR_COOLDOWN);
+  }
+
+  get isActive(): boolean {
+    return this.state === 'active';
+  }
+
+  get isAvailable(): boolean {
+    return this.state === 'idle';
+  }
+
+  // Gentle 0 → 1 oscillation for the idle button's invite-to-tap pulse.
+  get buttonPulse(): number {
+    return 0.5 + 0.5 * Math.sin(this.animTime * Math.PI * 2 * 0.8);
+  }
+
+  buttonHitTest(px: number, py: number): boolean {
+    const dx = px - this.buttonX;
+    const dy = py - this.buttonY;
+    const r = this.buttonRadius * 1.25; // generous touch target
+    return dx * dx + dy * dy <= r * r;
+  }
+
+  // Returns true if the tap summoned an excavator.
+  trySpawn(px: number, py: number): boolean {
+    if (this.state !== 'idle') return false;
+    if (!this.buttonHitTest(px, py)) return false;
+    this.spawn();
+    return true;
+  }
+
+  spawn(): void {
+    this.state = 'active';
+    this.lifeTimer = 0;
+    this.held = null;
+    this.target = null;
+    this.crushTimer = 0;
+    this.x = this.clampX(this.screenWidth / 2); // roll on near the centre, then seek
+    this.snapArmToRest();
   }
 
   // ── Goal points (world space) the bucket tip eases toward ──────────────────
@@ -170,42 +230,37 @@ export class ExcavatorManager {
   // ── Per-frame update ───────────────────────────────────────────────────────
 
   // `onChomp` taps a held balloon (sheds a layer / pops it); `onGrab` fires once
-  // when a balloon is first caught. Reads everything it needs about the cloud (its
-  // x, downpour column and on/off) from `cloud`, and scans `balloons` (the free,
-  // un-loaded ones) only to acquire new targets.
+  // when a balloon is first caught. Scans `balloons` (the free, un-loaded ones) to
+  // pick the next target and tracks its held balloon by its own reference.
   update<T extends GrabTarget>(
     dt: number,
-    cloud: DownpourSource,
     balloons: T[],
     onChomp: (target: T) => void,
     onGrab?: () => void,
   ): void {
     this.animTime += dt;
-    this.alpha = cloud.alpha;
     this.chompPulse = Math.max(0, this.chompPulse - dt / EXCAVATOR_CHOMP_INTERVAL);
 
-    if (!cloud.isActive) {
-      // The cloud is gone — drop anything held and go dormant until it returns.
-      this.releaseHeld();
-      this.target = null;
-      this.gripping = false;
-      this.wasActive = false;
+    if (this.state === 'cooldown') {
+      this.cooldownTimer += dt;
+      if (this.cooldownTimer >= EXCAVATOR_COOLDOWN) {
+        this.state = 'idle';
+        this.cooldownTimer = 0;
+      }
       return;
     }
 
-    if (!this.wasActive) {
-      // A fresh cloud was just summoned overhead — pop in directly beneath it.
-      this.wasActive = true;
-      this.x = this.clampX(cloud.x);
-      this.snapArmToRest();
-    }
+    if (this.state !== 'active') return;
 
-    this.drive(cloud.x, dt);
+    this.lifeTimer += dt;
 
     if (this.held) {
+      // Hold position and chomp the caught balloon until it pops.
       this.crushHeld(dt, onChomp);
     } else {
-      this.target = this.pickTarget(cloud, balloons);
+      // Seek the nearest reachable balloon and trundle in under it.
+      this.target = this.pickTarget(balloons);
+      if (this.target) this.drive(this.target.x, dt);
     }
 
     this.moveArm(dt);
@@ -217,12 +272,20 @@ export class ExcavatorManager {
 
     if (this.held) this.carryHeld();
     this.gripping = this.held !== null;
+
+    if (this.lifeTimer >= EXCAVATOR_LIFETIME) {
+      this.releaseHeld();
+      this.target = null;
+      this.gripping = false;
+      this.state = 'cooldown';
+      this.cooldownTimer = 0;
+    }
   }
 
-  // Trundle the base toward the cloud's x, spinning the tracks by the distance moved
-  // (so a digger parked under a still cloud sits with its tracks at rest).
-  private drive(cloudX: number, dt: number): void {
-    const goal = this.clampX(cloudX);
+  // Trundle the base toward a goal x, spinning the tracks by the distance moved (so
+  // a digger sitting still — holding or with no target — keeps its tracks at rest).
+  private drive(goalX: number, dt: number): void {
+    const goal = this.clampX(goalX);
     const dx = goal - this.x;
     const step = EXCAVATOR_DRIVE_SPEED * dt;
     const moved = Math.abs(dx) <= step ? dx : Math.sign(dx) * step;
@@ -230,28 +293,26 @@ export class ExcavatorManager {
     this.trackPhase += moved * 0.05;
   }
 
-  // Nearest free, poppable balloon sitting in the downpour column below the cloud
-  // base and within arm's reach. Nearest-to-shoulder keeps the choice stable and
-  // makes the digger grab the closest balloon first.
-  private pickTarget<T extends GrabTarget>(cloud: DownpourSource, balloons: T[]): GrabTarget | null {
+  // Nearest free, poppable balloon the arm can reach once the base drives in under
+  // it. Reachability is judged on the *vertical* gap to the shoulder (the base
+  // closes the horizontal gap), keeping the digger out of its own unreachable inner
+  // dead zone and away from balloons that have risen out of reach overhead.
+  private pickTarget<T extends GrabTarget>(balloons: T[]): GrabTarget | null {
     const sx = this.shoulderX;
     const sy = this.shoulderY;
     const reach = this.maxReach * EXCAVATOR_REACH_MARGIN;
-    // The arm also has an unreachable inner circle (a two-link arm can't fold past
-    // |boom − stick|). Ignore balloons inside it so the digger never fixates on one
-    // its bucket can't physically touch — it would block every other grab.
     const minReach = Math.max(0, Math.abs(this.boomLen - this.stickLen) - EXCAVATOR_GRAB_DIST);
-    const colHalf = cloud.rainHalfWidth;
     let best: GrabTarget | null = null;
     let bestD = Infinity;
     for (const b of balloons) {
       if (b.loaded || b.dragged || !b.isDraggable) continue; // claimed / a finger / a non-grabbable special
-      if (!b.hitTest(b.x, b.y)) continue;            // only live, poppable balloons
-      if (b.y < cloud.cloudBaseY) continue;          // must be down in the rain, not up by the cloud
-      if (Math.abs(b.x - cloud.x) > colHalf + b.radiusX) continue; // inside the downpour column
-      const [gx, gy] = this.grabPointOf(b);
-      const d = Math.hypot(gx - sx, gy - sy);
-      if (d > reach || d < minReach) continue;       // outside the arm's reachable annulus
+      if (!b.hitTest(b.x, b.y)) continue;                    // only live, poppable balloons
+      const gy = b.y - EXCAVATOR_GRAB_RISE * b.radiusY;
+      const vert = Math.abs(gy - sy);
+      if (vert > reach || vert < minReach) continue;         // unreachable height (too high, or its own dead zone)
+      const dx = b.x - sx;
+      const dy = gy - sy;
+      const d = dx * dx + dy * dy;                           // nearest first → grab the closest/lowest
       if (d < bestD) {
         bestD = d;
         best = b;
@@ -392,14 +453,15 @@ export class ExcavatorManager {
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
-  // Drop anything held and go dormant immediately (used when the finale begins, so
-  // a held balloon is freed at once rather than waiting for the cloud to clear).
+  // Remove the excavator without starting a cooldown (used when the finale begins),
+  // dropping anything held at once.
   clear(): void {
     this.releaseHeld();
     this.target = null;
     this.gripping = false;
-    this.wasActive = false;
-    this.alpha = 0;
+    this.state = 'idle';
+    this.lifeTimer = 0;
+    this.cooldownTimer = 0;
   }
 
   reset(): void {

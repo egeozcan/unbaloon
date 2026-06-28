@@ -637,6 +637,54 @@ export class AudioManager {
 
   // ── Excavator sounds ─────────────────────────────────────────────────────────
 
+  // Chugging diesel start-up with a hydraulic whine on top as the excavator rolls
+  // out — gruffer than the tractor, brightened by the servo whine.
+  playExcavatorSpawn(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    // Diesel rumble.
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const lowpass = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(46, now);
+    osc.frequency.linearRampToValueAtTime(84, now + 0.5);
+    osc.frequency.linearRampToValueAtTime(70, now + 0.8);
+    lfo.type = 'square';
+    lfo.frequency.setValueAtTime(8, now);
+    lfo.frequency.linearRampToValueAtTime(12, now + 0.7);
+    lfoGain.gain.value = 0.07;
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 700;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.13, now + 0.12);
+    gain.gain.linearRampToValueAtTime(0, now + 0.85);
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+    osc.connect(lowpass);
+    lowpass.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    lfo.start(now);
+    osc.stop(now + 0.85);
+    lfo.stop(now + 0.85);
+    // Hydraulic servo whine sweeping up.
+    const whine = ctx.createOscillator();
+    const whineGain = ctx.createGain();
+    whine.type = 'triangle';
+    whine.frequency.setValueAtTime(320, now + 0.2);
+    whine.frequency.exponentialRampToValueAtTime(640, now + 0.7);
+    whineGain.gain.setValueAtTime(0.0001, now + 0.2);
+    whineGain.gain.linearRampToValueAtTime(0.05, now + 0.4);
+    whineGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+    whine.connect(whineGain);
+    whineGain.connect(ctx.destination);
+    whine.start(now + 0.2);
+    whine.stop(now + 0.8);
+  }
+
   // Hydraulic whir rising to a clamp "clunk" as the bucket grabs a balloon.
   playExcavatorGrab(): void {
     const ctx = this.ensureContext();

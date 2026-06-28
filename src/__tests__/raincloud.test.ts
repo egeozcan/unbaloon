@@ -4,6 +4,7 @@ import { HelicopterManager } from '../helicopter';
 import { PlaneManager } from '../plane';
 import { BulldozerManager } from '../bulldozer';
 import { TractorManager } from '../tractor';
+import { ExcavatorManager } from '../excavator';
 import { Balloon } from '../balloon';
 import {
   RAIN_LIFETIME,
@@ -335,7 +336,7 @@ describe('RainCloudManager', () => {
   });
 });
 
-// The four left-edge vehicle spawn buttons, for placement checks.
+// The five left-edge vehicle spawn buttons, for placement checks.
 function makeVehicleButtons(w: number, h: number): Array<{ x: number; y: number; r: number }> {
   const heli = new HelicopterManager();
   heli.setScreenSize(w, h);
@@ -345,10 +346,13 @@ function makeVehicleButtons(w: number, h: number): Array<{ x: number; y: number;
   dozer.setScreenSize(w, h);
   const tractor = new TractorManager();
   tractor.setScreenSize(w, h);
+  const excavator = new ExcavatorManager();
+  excavator.setScreenSize(w, h);
   return [
     { x: heli.buttonX, y: heli.buttonY, r: heli.buttonRadius },
     { x: plane.buttonX, y: plane.buttonY, r: plane.buttonRadius },
     { x: dozer.buttonX, y: dozer.buttonY, r: dozer.buttonRadius },
     { x: tractor.buttonX, y: tractor.buttonY, r: tractor.buttonRadius },
+    { x: excavator.buttonX, y: excavator.buttonY, r: excavator.buttonRadius },
   ];
 }

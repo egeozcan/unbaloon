@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Renderer } from '../renderer';
 import { BulldozerManager } from '../bulldozer';
-import { ExcavatorManager, DownpourSource } from '../excavator';
+import { ExcavatorManager } from '../excavator';
 
 // A minimal stand-in for CanvasRenderingContext2D that records save/restore
 // balance and swallows every drawing call. Enough to smoke-test that the canvas
@@ -90,12 +90,11 @@ describe('Renderer bulldozer drawing', () => {
 });
 
 describe('Renderer excavator drawing', () => {
-  const cloud: DownpourSource = { isActive: true, alpha: 1, x: 400, rainHalfWidth: 130, cloudBaseY: 120 };
-
   function settled(): ExcavatorManager {
     const ex = new ExcavatorManager();
     ex.setScreenSize(800, 600);
-    for (let i = 0; i < 40; i++) ex.update(1 / 60, cloud, [], () => {});
+    ex.spawn();
+    for (let i = 0; i < 40; i++) ex.update(1 / 60, [], () => {});
     return ex;
   }
 
@@ -123,8 +122,24 @@ describe('Renderer excavator drawing', () => {
     const mock = makeMockCtx();
     const renderer = new Renderer(mock.ctx);
     const ex = new ExcavatorManager();
-    ex.setScreenSize(800, 600); // never woke under a cloud → alpha 0
+    ex.setScreenSize(800, 600); // idle → alpha 0
     renderer.drawExcavator(ex);
     expect(mock.maxDepth()).toBe(0);
+  });
+
+  it('draws the spawn button (available and during cooldown) without leaking saves', () => {
+    for (const cooling of [false, true]) {
+      const mock = makeMockCtx();
+      const renderer = new Renderer(mock.ctx);
+      const ex = new ExcavatorManager();
+      ex.setScreenSize(800, 600);
+      if (cooling) {
+        ex.spawn();
+        ex.update(1000, [], () => {}); // -> cooldown
+      }
+      renderer.drawExcavatorButton(ex);
+      expect(mock.depth()).toBe(0);
+      expect(mock.minDepth()).toBe(0);
+    }
   });
 });
