@@ -8,6 +8,7 @@ import { PlaneManager } from './plane';
 import { BulldozerManager } from './bulldozer';
 import { TractorManager } from './tractor';
 import { RainCloudManager } from './raincloud';
+import { ExcavatorManager } from './excavator';
 import {
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
@@ -48,6 +49,7 @@ export class Game {
   private bulldozer: BulldozerManager;
   private tractor: TractorManager;
   private rainCloud: RainCloudManager;
+  private excavator: ExcavatorManager;
   private previousPhase: Phase = 1;
 
   // Surprise counter
@@ -75,6 +77,7 @@ export class Game {
     this.bulldozer = new BulldozerManager();
     this.tractor = new TractorManager();
     this.rainCloud = new RainCloudManager();
+    this.excavator = new ExcavatorManager();
   }
 
   start(): void {
@@ -180,6 +183,17 @@ export class Game {
     // downpour (it claims no balloon — slowed ones recover once they drift clear).
     this.rainCloud.update(dt, this.balloons);
 
+    // Update excavator: lives under the rain cloud, trundling along the floor to
+    // stay beneath it and reaching up to grab rain-slowed balloons and chomp them.
+    // It claims the balloon it holds (via `loaded`), so it draws from the free pool.
+    this.excavator.update(
+      dt,
+      this.rainCloud,
+      freeBalloons,
+      (b) => this.chompBalloon(b),
+      () => this.audio.playExcavatorGrab(),
+    );
+
     // Update surprise events
     this.surprise.update(dt);
 
@@ -217,6 +231,11 @@ export class Game {
     // Tractor is a ground vehicle too — drawn over the balloons so its trailer
     // deck cradles the loaded ones, but below the aircraft.
     this.renderer.drawTractor(this.tractor);
+
+    // Excavator is a ground vehicle as well — drawn over the balloons so its arm
+    // and bucket read against the balloon it's gripping (alpha 0 when no cloud is
+    // out, so it simply doesn't draw then).
+    this.renderer.drawExcavator(this.excavator);
 
     // Darts and helicopter ride above the balloons
     this.renderer.drawDarts(this.helicopter.darts);
@@ -333,6 +352,14 @@ export class Game {
   // layering a crunchy squish on top.
   private crushBalloon(b: Balloon): void {
     this.audio.playBulldozerCrush();
+    this.tapBalloon(b);
+  }
+
+  // Each excavator bucket "chomp" taps the held balloon once (decrement, or pop at
+  // 1). Reuses tapBalloon so surprise counting and pop sounds stay consistent,
+  // layering a metallic bite on top.
+  private chompBalloon(b: Balloon): void {
+    this.audio.playExcavatorChomp();
     this.tapBalloon(b);
   }
 
@@ -494,6 +521,7 @@ export class Game {
     this.bulldozer.clear();
     this.tractor.clear();
     this.rainCloud.clear();
+    this.excavator.clear();
   }
 
   private updateFinale(dt: number): void {
@@ -573,6 +601,8 @@ export class Game {
     this.tractor.setScreenSize(this.width, this.height);
     this.rainCloud.reset();
     this.rainCloud.setScreenSize(this.width, this.height);
+    this.excavator.reset();
+    this.excavator.setScreenSize(this.width, this.height);
     this.focusX = this.width / 2;
     this.focusY = this.height / 2;
     this.session.reset();
@@ -666,5 +696,6 @@ export class Game {
     this.bulldozer.setScreenSize(this.width, this.height);
     this.tractor.setScreenSize(this.width, this.height);
     this.rainCloud.setScreenSize(this.width, this.height);
+    this.excavator.setScreenSize(this.width, this.height);
   }
 }

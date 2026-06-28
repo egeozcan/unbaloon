@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Renderer } from '../renderer';
 import { BulldozerManager } from '../bulldozer';
+import { ExcavatorManager, DownpourSource } from '../excavator';
 
 // A minimal stand-in for CanvasRenderingContext2D that records save/restore
 // balance and swallows every drawing call. Enough to smoke-test that the canvas
@@ -85,5 +86,45 @@ describe('Renderer bulldozer drawing', () => {
       expect(mock.depth()).toBe(0);
       expect(mock.minDepth()).toBe(0);
     }
+  });
+});
+
+describe('Renderer excavator drawing', () => {
+  const cloud: DownpourSource = { isActive: true, alpha: 1, x: 400, rainHalfWidth: 130, cloudBaseY: 120 };
+
+  function settled(): ExcavatorManager {
+    const ex = new ExcavatorManager();
+    ex.setScreenSize(800, 600);
+    for (let i = 0; i < 40; i++) ex.update(1 / 60, cloud, [], () => {});
+    return ex;
+  }
+
+  it('draws without throwing and balances save/restore', () => {
+    const mock = makeMockCtx();
+    const renderer = new Renderer(mock.ctx);
+    renderer.drawExcavator(settled());
+    expect(mock.depth()).toBe(0);
+    expect(mock.minDepth()).toBe(0);
+  });
+
+  it('exercises the chomp branch without leaking saves', () => {
+    const mock = makeMockCtx();
+    const renderer = new Renderer(mock.ctx);
+    const ex = settled();
+    ex.gripping = true;
+    ex.chompPulse = 1;
+    ex.bucketAngle = 1.2; // a tilted wrist
+    renderer.drawExcavator(ex);
+    expect(mock.depth()).toBe(0);
+    expect(mock.minDepth()).toBe(0);
+  });
+
+  it('skips drawing entirely while invisible (alpha 0)', () => {
+    const mock = makeMockCtx();
+    const renderer = new Renderer(mock.ctx);
+    const ex = new ExcavatorManager();
+    ex.setScreenSize(800, 600); // never woke under a cloud → alpha 0
+    renderer.drawExcavator(ex);
+    expect(mock.maxDepth()).toBe(0);
   });
 });

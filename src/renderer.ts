@@ -55,6 +55,17 @@ import {
   RAIN_DROP_COUNT,
   RAIN_DROP_SPEED,
   RAIN_DROP_LENGTH,
+  EXCAVATOR_BODY_COLOR,
+  EXCAVATOR_BODY_DARK,
+  EXCAVATOR_CAB_COLOR,
+  EXCAVATOR_WINDOW_COLOR,
+  EXCAVATOR_ARM_COLOR,
+  EXCAVATOR_ARM_DARK,
+  EXCAVATOR_BUCKET_COLOR,
+  EXCAVATOR_BUCKET_DARK,
+  EXCAVATOR_TRACK_COLOR,
+  EXCAVATOR_WHEEL_COLOR,
+  EXCAVATOR_DETAIL_COLOR,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
 import type { ActiveEvent, Bubble } from './surprise';
@@ -63,6 +74,7 @@ import type { Missile, PlaneManager } from './plane';
 import type { BulldozerManager } from './bulldozer';
 import type { TractorManager } from './tractor';
 import type { RainCloudManager } from './raincloud';
+import type { ExcavatorManager } from './excavator';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -1795,6 +1807,267 @@ export class Renderer {
       ctx.stroke();
       ctx.restore();
     }
+  }
+
+  // ── Excavator: tracked base, cab, articulated arm + bucket ───────────────────
+
+  // The excavator is drawn straight in world space: the tracked base and cab sit
+  // around (ex.x, ex.y), and the arm joints (shoulder → elbow → bucket) are already
+  // world coordinates from the manager's IK solve, so no rotation is needed here.
+  drawExcavator(ex: ExcavatorManager): void {
+    const alpha = ex.alpha;
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const s = ex.size;
+    this.drawExcavatorTracks(ex.x, ex.y, s, ex.trackPhase);
+    this.drawExcavatorCab(ex.x, ex.y, s);
+    this.drawExcavatorArm(ex, s);
+    ctx.restore();
+  }
+
+  private drawExcavatorWheel(wx: number, wy: number, wr: number, phase: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = EXCAVATOR_WHEEL_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = EXCAVATOR_BODY_DARK;
+    ctx.lineWidth = Math.max(1.5, wr * 0.2);
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 4; k++) {
+      const a = phase + (k * Math.PI) / 2;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx + Math.cos(a) * wr * 0.78, wy + Math.sin(a) * wr * 0.78);
+      ctx.stroke();
+    }
+    ctx.fillStyle = EXCAVATOR_BODY_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Dark stadium track frame with drive sprockets, idler and tread lugs.
+  private drawExcavatorTracks(cx: number, cy: number, s: number, phase: number): void {
+    const ctx = this.ctx;
+    const top = cy + 0.20 * s;
+    const bot = cy + 0.46 * s;
+    const left = cx - 0.42 * s;
+    const right = cx + 0.42 * s;
+    const midY = (top + bot) / 2;
+    const rad = (bot - top) / 2;
+
+    ctx.fillStyle = EXCAVATOR_TRACK_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(left, top);
+    ctx.lineTo(right, top);
+    ctx.arc(right, midY, rad, -Math.PI / 2, Math.PI / 2);
+    ctx.lineTo(left, bot);
+    ctx.arc(left, midY, rad, Math.PI / 2, Math.PI * 1.5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Tread lugs riding along the bottom with the track phase.
+    ctx.strokeStyle = EXCAVATOR_WHEEL_COLOR;
+    ctx.lineWidth = Math.max(1.5, s * 0.02);
+    ctx.lineCap = 'butt';
+    const span = right - left;
+    // Normalise the scroll offset into [0, 1): driving left makes trackPhase
+    // negative, and a raw `% 1` would keep the sign and push the first lug past the
+    // left cap.
+    const off = (((phase * 0.16) % 1) + 1) % 1;
+    for (let i = 0; i < 8; i++) {
+      const frac = ((i + off) % 8) / 8;
+      const lx = left + frac * span;
+      ctx.beginPath();
+      ctx.moveTo(lx, bot - s * 0.01);
+      ctx.lineTo(lx, bot - s * 0.05);
+      ctx.stroke();
+    }
+
+    this.drawExcavatorWheel(left, midY, rad * 0.9, phase);
+    this.drawExcavatorWheel(right, midY, rad * 0.9, phase);
+    this.drawExcavatorWheel(cx, midY, rad * 0.6, phase);
+  }
+
+  // The slew deck, counterweight, house and operator cab.
+  private drawExcavatorCab(cx: number, cy: number, s: number): void {
+    const ctx = this.ctx;
+
+    // Slew deck the house rotates on, sitting on the tracks.
+    ctx.fillStyle = EXCAVATOR_BODY_DARK;
+    this.roundedRectPath(cx - 0.40 * s, cy + 0.10 * s, 0.80 * s, 0.13 * s, 0.03 * s);
+    ctx.fill();
+
+    // Counterweight block at the back (left).
+    ctx.fillStyle = EXCAVATOR_BODY_DARK;
+    this.roundedRectPath(cx - 0.43 * s, cy - 0.08 * s, 0.20 * s, 0.22 * s, 0.03 * s);
+    ctx.fill();
+
+    // House body with a top sheen and a lower shade for roundness.
+    ctx.fillStyle = EXCAVATOR_BODY_COLOR;
+    this.roundedRectPath(cx - 0.36 * s, cy - 0.13 * s, 0.68 * s, 0.25 * s, 0.05 * s);
+    ctx.fill();
+    ctx.fillStyle = this.shadeColor(EXCAVATOR_BODY_COLOR, 0.2);
+    this.roundedRectPath(cx - 0.34 * s, cy - 0.13 * s, 0.42 * s, 0.04 * s, 0.02 * s);
+    ctx.fill();
+    ctx.fillStyle = EXCAVATOR_BODY_DARK;
+    this.roundedRectPath(cx - 0.36 * s, cy + 0.07 * s, 0.68 * s, 0.05 * s, 0.025 * s);
+    ctx.fill();
+
+    // Exhaust stack rising from the house top (back).
+    ctx.fillStyle = EXCAVATOR_DETAIL_COLOR;
+    ctx.fillRect(cx - 0.24 * s, cy - 0.25 * s, 0.03 * s, 0.13 * s);
+    this.roundedRectPath(cx - 0.252 * s, cy - 0.275 * s, 0.054 * s, 0.03 * s, 0.012 * s);
+    ctx.fill();
+
+    // Operator cab (front-right of the house) with a slanted windshield and glint.
+    ctx.fillStyle = EXCAVATOR_CAB_COLOR;
+    this.roundedRectPath(cx + 0.06 * s, cy - 0.30 * s, 0.24 * s, 0.30 * s, 0.04 * s);
+    ctx.fill();
+    ctx.fillStyle = EXCAVATOR_WINDOW_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(cx + 0.09 * s, cy - 0.04 * s);
+    ctx.lineTo(cx + 0.09 * s, cy - 0.22 * s);
+    ctx.lineTo(cx + 0.16 * s, cy - 0.27 * s);
+    ctx.lineTo(cx + 0.27 * s, cy - 0.27 * s);
+    ctx.lineTo(cx + 0.27 * s, cy - 0.04 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+    ctx.beginPath();
+    ctx.moveTo(cx + 0.13 * s, cy - 0.25 * s);
+    ctx.lineTo(cx + 0.19 * s, cy - 0.25 * s);
+    ctx.lineTo(cx + 0.12 * s, cy - 0.06 * s);
+    ctx.lineTo(cx + 0.09 * s, cy - 0.06 * s);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Boom (shoulder → elbow) and stick (elbow → bucket), each a tapered plate with a
+  // dark outline, plus joint pivots, a couple of hydraulic cylinders, and the bucket.
+  private drawExcavatorArm(ex: ExcavatorManager, s: number): void {
+    const ctx = this.ctx;
+    const sx = ex.shoulderX;
+    const sy = ex.shoulderY;
+    const elx = ex.elbowX;
+    const ely = ex.elbowY;
+    const bx = ex.bucketX;
+    const by = ex.bucketY;
+
+    // Hydraulic cylinders first, so the plates overlap their ends.
+    ctx.strokeStyle = EXCAVATOR_DETAIL_COLOR;
+    ctx.lineWidth = Math.max(1.5, s * 0.022);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(sx + 0.02 * s, sy + 0.06 * s);
+    ctx.lineTo(elx + (sx - elx) * 0.45, ely + (sy - ely) * 0.45);
+    ctx.moveTo(elx, ely);
+    ctx.lineTo(bx + (elx - bx) * 0.55, by + (ely - by) * 0.55);
+    ctx.stroke();
+
+    this.drawArmSegment(sx, sy, elx, ely, 0.15 * s, 0.11 * s);
+    this.drawArmSegment(elx, ely, bx, by, 0.105 * s, 0.075 * s);
+
+    // Joint pivots.
+    this.drawArmPivot(sx, sy, 0.075 * s);
+    this.drawArmPivot(elx, ely, 0.065 * s);
+
+    this.drawExcavatorBucket(ex, s);
+  }
+
+  // A tapered arm plate from (x1,y1) width w1 to (x2,y2) width w2, dark outline
+  // under an arm-coloured fill.
+  private drawArmSegment(x1: number, y1: number, x2: number, y2: number, w1: number, w2: number): void {
+    const ctx = this.ctx;
+    const o = Math.max(2, (w1 + w2) * 0.16); // outline thickness
+    ctx.fillStyle = EXCAVATOR_ARM_DARK;
+    this.armQuadPath(x1, y1, x2, y2, w1 + o, w2 + o);
+    ctx.fill();
+    ctx.fillStyle = EXCAVATOR_ARM_COLOR;
+    this.armQuadPath(x1, y1, x2, y2, w1, w2);
+    ctx.fill();
+  }
+
+  private armQuadPath(x1: number, y1: number, x2: number, y2: number, w1: number, w2: number): void {
+    const ctx = this.ctx;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = (-dy / len) * 0.5;
+    const ny = (dx / len) * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x1 + nx * w1, y1 + ny * w1);
+    ctx.lineTo(x2 + nx * w2, y2 + ny * w2);
+    ctx.lineTo(x2 - nx * w2, y2 - ny * w2);
+    ctx.lineTo(x1 - nx * w1, y1 - ny * w1);
+    ctx.closePath();
+  }
+
+  private drawArmPivot(x: number, y: number, r: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = EXCAVATOR_ARM_DARK;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = EXCAVATOR_ARM_COLOR;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // The steel scoop at the stick tip — opens downward to bite a balloon from above,
+  // tilting toward the stick for a natural wrist and curling in on each chomp.
+  private drawExcavatorBucket(ex: ExcavatorManager, s: number): void {
+    const ctx = this.ctx;
+    const w = 0.34 * s;
+    const h = 0.32 * s;
+    const tilt = (ex.bucketAngle - Math.PI / 2) * 0.3 - 0.3 * ex.chompPulse;
+
+    ctx.save();
+    ctx.translate(ex.bucketX, ex.bucketY);
+    ctx.rotate(tilt);
+
+    // Scoop body, opening downward.
+    ctx.fillStyle = EXCAVATOR_BUCKET_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.5, -h * 0.08);
+    ctx.quadraticCurveTo(-w * 0.62, h * 0.45, -w * 0.18, h * 0.62);
+    ctx.lineTo(w * 0.18, h * 0.62);
+    ctx.quadraticCurveTo(w * 0.62, h * 0.45, w * 0.5, -h * 0.08);
+    ctx.closePath();
+    ctx.fill();
+
+    // Curved side shading for depth.
+    ctx.fillStyle = EXCAVATOR_BUCKET_DARK;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.5, -h * 0.08);
+    ctx.quadraticCurveTo(-w * 0.62, h * 0.45, -w * 0.18, h * 0.62);
+    ctx.lineTo(-w * 0.06, h * 0.62);
+    ctx.quadraticCurveTo(-w * 0.42, h * 0.4, -w * 0.34, -h * 0.08);
+    ctx.closePath();
+    ctx.fill();
+
+    // Hinge plate at the top where the stick attaches.
+    ctx.fillStyle = EXCAVATOR_BUCKET_DARK;
+    this.roundedRectPath(-w * 0.5, -h * 0.26, w, h * 0.2, h * 0.05);
+    ctx.fill();
+
+    // Teeth along the bottom lip.
+    ctx.fillStyle = EXCAVATOR_BUCKET_DARK;
+    for (let i = -1; i <= 1; i++) {
+      const tx = i * w * 0.27;
+      ctx.beginPath();
+      ctx.moveTo(tx - w * 0.07, h * 0.6);
+      ctx.lineTo(tx + w * 0.07, h * 0.6);
+      ctx.lineTo(tx, h * 0.6 + h * 0.16);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.restore();
   }
 
 }

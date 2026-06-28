@@ -55,9 +55,10 @@ export class Balloon {
   // Dragging
   dragged: boolean = false;
 
-  // Loaded onto the tractor's trailer: frozen in place (the tractor positions it)
-  // while it is processed, and excluded from every other interaction (player
-  // taps/drags and the other vehicles all skip a loaded balloon).
+  // Claimed by a ground vehicle that carries it — the tractor's trailer or the
+  // excavator's bucket: frozen in place (the vehicle positions it) while it is
+  // processed, and excluded from every other interaction (player taps/drags and
+  // the other vehicles all skip a loaded balloon).
   loaded: boolean = false;
 
   // Rise-speed multiplier (1 = full speed). The rain cloud drives this down toward

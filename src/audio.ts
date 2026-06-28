@@ -634,4 +634,79 @@ export class AudioManager {
     osc.start(now);
     osc.stop(now + 0.72);
   }
+
+  // ── Excavator sounds ─────────────────────────────────────────────────────────
+
+  // Hydraulic whir rising to a clamp "clunk" as the bucket grabs a balloon.
+  playExcavatorGrab(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    // Servo whir: a quick upward sweep.
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(520, now + 0.12);
+    const lowpass = ctx.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 1100;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.09, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    osc.connect(lowpass);
+    lowpass.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.18);
+    // Clamp clunk at the end of the whir.
+    const clunk = ctx.createOscillator();
+    const clunkGain = ctx.createGain();
+    clunk.type = 'square';
+    clunk.frequency.setValueAtTime(160, now + 0.12);
+    clunk.frequency.exponentialRampToValueAtTime(80, now + 0.2);
+    clunkGain.gain.setValueAtTime(0.12, now + 0.12);
+    clunkGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    clunk.connect(clunkGain);
+    clunkGain.connect(ctx.destination);
+    clunk.start(now + 0.12);
+    clunk.stop(now + 0.22);
+  }
+
+  // Short metallic bite for each bucket chomp — kept quiet as it repeats.
+  playExcavatorChomp(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+    // Clanky metal noise.
+    const bufferSize = Math.ceil(ctx.sampleRate * 0.06);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(2200, now);
+    bandpass.frequency.exponentialRampToValueAtTime(900, now + 0.06);
+    bandpass.Q.value = 1.4;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.1, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    noise.connect(bandpass);
+    bandpass.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + 0.06);
+    // Low clank underneath.
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(90, now + 0.05);
+    oscGain.gain.setValueAtTime(0.1, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.06);
+  }
 }

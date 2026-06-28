@@ -312,3 +312,39 @@ export const RAIN_CLOUD_COLOR = '#9FB1C4'; // soft grey-blue cloud body
 export const RAIN_CLOUD_LIGHT = '#EAF1F7'; // sunlit cloud top
 export const RAIN_CLOUD_DARK = '#6B7C90';  // cloud shading / outline / button ring
 export const RAIN_DROP_COLOR = '#5FB0E6';  // cheerful rain blue
+
+// ── Excavator (pairs with the rain cloud) ──────────────────────────────────────
+// A ground machine that appears beneath an active rain cloud, trundles along the
+// floor to stay under the downpour, and reaches up with an articulated arm to
+// pluck the rain-slowed balloons out of the column and chomp them with its bucket.
+// It has no spawn button or cooldown of its own — it lives and dies with the cloud
+// above it (alpha, on/off and horizontal position all follow the cloud).
+export const EXCAVATOR_SIZE_RATIO = 0.18;   // body length relative to screen width
+export const EXCAVATOR_MIN_SIZE = 92;       // CSS px floor so it stays visible
+export const EXCAVATOR_DRIVE_SPEED = 230;   // CSS px/s — how fast the base chases the cloud's x
+export const EXCAVATOR_GROUND_LOCAL = 0.42; // body centre sits this×size above the screen bottom
+export const EXCAVATOR_BODY_HALF_RATIO = 0.46; // half the track footprint; the wander/clamp keeps this on-screen
+// Articulated arm, in body-length (size) fractions:
+export const EXCAVATOR_BOOM_RATIO = 1.18;   // boom (first arm segment) length
+export const EXCAVATOR_STICK_RATIO = 1.0;   // stick (second arm segment) length
+export const EXCAVATOR_REACH_MARGIN = 0.95; // only target balloons within this fraction of full reach
+// Shoulder (boom pivot) offset from the body centre.
+export const EXCAVATOR_SHOULDER_DX = -0.04;
+export const EXCAVATOR_SHOULDER_DY = -0.18;
+// Bucket motion / grabbing:
+export const EXCAVATOR_ARM_SPEED = 820;     // CSS px/s — how fast the bucket tip eases toward its goal
+export const EXCAVATOR_GRAB_DIST = 28;      // CSS px — bucket tip within this of a balloon's grab point catches it
+export const EXCAVATOR_GRAB_RISE = 0.35;    // grab point sits this×radiusY above a balloon's centre (bucket bites from above)
+export const EXCAVATOR_CHOMP_INTERVAL = 0.34; // seconds between bucket chomps while popping a held balloon
+
+export const EXCAVATOR_BODY_COLOR = '#F08A24';   // construction orange (distinct from the dozer's yellow)
+export const EXCAVATOR_BODY_DARK = '#C46A12';    // shading / button outline
+export const EXCAVATOR_CAB_COLOR = '#FFA63D';    // lighter orange cab
+export const EXCAVATOR_WINDOW_COLOR = '#BFE3FF'; // glass (matches the others)
+export const EXCAVATOR_ARM_COLOR = '#F0A030';    // boom / stick
+export const EXCAVATOR_ARM_DARK = '#B5701A';     // arm shading / outline
+export const EXCAVATOR_BUCKET_COLOR = '#9AA4AE'; // steel bucket
+export const EXCAVATOR_BUCKET_DARK = '#6C757D';  // bucket edge / teeth shading
+export const EXCAVATOR_TRACK_COLOR = '#33383F';  // rubber tracks
+export const EXCAVATOR_WHEEL_COLOR = '#1F2329';  // wheel hubs
+export const EXCAVATOR_DETAIL_COLOR = '#2A2F38'; // exhaust stack, panel lines
