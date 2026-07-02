@@ -5,14 +5,15 @@ import {
   HELI_BUTTON_MAX_RADIUS,
 } from './constants';
 
-// The five vehicle spawn buttons (helicopter, plane, bulldozer, tractor, excavator)
-// form one vertical column down the left edge — index 0 = top (helicopter). The
-// column is anchored at screen centre, matching the original two-button placement on
-// normal screens, but slides up just enough to keep every button (touch target
-// included) on-screen on short / landscape viewports, so no button is ever clipped
-// or unreachable. Centralised here so all five managers stay in lockstep.
+// The six vehicle spawn buttons (helicopter, plane, bulldozer, tractor, excavator,
+// firefighter) form one vertical column down the left edge — index 0 = top
+// (helicopter). The column is anchored at screen centre, matching the original
+// two-button placement on normal screens, but slides up just enough to keep every
+// button (touch target included) on-screen on short / landscape viewports, so no
+// button is ever clipped or unreachable. Centralised here so all six managers stay
+// in lockstep.
 
-export const VEHICLE_BUTTON_COUNT = 5;
+export const VEHICLE_BUTTON_COUNT = 6;
 
 const TOUCH_SCALE = 1.25; // buttons use a 1.25× touch radius (see buttonHitTest)
 // Centre-to-centre spacing is 2×TOUCH_SCALE×r plus a small constant gap, so
@@ -29,7 +30,7 @@ function slotFor(r: number): number {
 export function vehicleButtonRadius(width: number, height: number): number {
   const byViewport = Math.min(width, height) * HELI_BUTTON_RADIUS_RATIO;
   // Largest radius that still lets the whole column (touch targets included) fit
-  // the viewport height — this keeps all four buttons on-screen even on short
+  // the viewport height — this keeps every button on-screen even on short
   // landscape phones. Column height = (COUNT−1)·slot + 2·TOUCH_SCALE·r + 2·MARGIN_Y.
   const n = VEHICLE_BUTTON_COUNT;
   const byHeight = (height - (n - 1) * BTN_GAP - 2 * MARGIN_Y) / (2 * TOUCH_SCALE * n);

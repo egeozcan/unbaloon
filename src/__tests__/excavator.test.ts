@@ -4,6 +4,7 @@ import { HelicopterManager } from '../helicopter';
 import { PlaneManager } from '../plane';
 import { BulldozerManager } from '../bulldozer';
 import { TractorManager } from '../tractor';
+import { FiretruckManager } from '../firetruck';
 import { Balloon } from '../balloon';
 import {
   EXCAVATOR_LIFETIME,
@@ -144,7 +145,7 @@ describe('ExcavatorManager', () => {
       expect(ex.buttonY).toBeGreaterThan(tractor.buttonY);
     });
 
-    it('keeps all five button touch targets from overlapping on any screen', () => {
+    it('keeps all button touch targets from overlapping on any screen', () => {
       for (const [w, h] of [[375, 667], [800, 600], [1400, 1024], [320, 480], [480, 300]]) {
         const buttons = makeAllButtons(w, h);
         for (let i = 0; i < buttons.length; i++) {
@@ -158,7 +159,7 @@ describe('ExcavatorManager', () => {
       }
     });
 
-    it('keeps all five buttons fully on-screen, including short/landscape viewports', () => {
+    it('keeps all buttons fully on-screen, including short/landscape viewports', () => {
       for (const [w, h] of [[667, 375], [568, 320], [812, 375], [844, 390], [375, 667], [320, 480], [480, 300], [400, 300]]) {
         for (const btn of makeAllButtons(w, h)) {
           const reach = btn.r * 1.25; // touch target must stay within the viewport
@@ -367,11 +368,14 @@ function makeAllButtons(w: number, h: number): Array<{ x: number; y: number; r: 
   tractor.setScreenSize(w, h);
   const excavator = new ExcavatorManager();
   excavator.setScreenSize(w, h);
+  const firetruck = new FiretruckManager();
+  firetruck.setScreenSize(w, h);
   return [
     { x: heli.buttonX, y: heli.buttonY, r: heli.buttonRadius },
     { x: plane.buttonX, y: plane.buttonY, r: plane.buttonRadius },
     { x: dozer.buttonX, y: dozer.buttonY, r: dozer.buttonRadius },
     { x: tractor.buttonX, y: tractor.buttonY, r: tractor.buttonRadius },
     { x: excavator.buttonX, y: excavator.buttonY, r: excavator.buttonRadius },
+    { x: firetruck.buttonX, y: firetruck.buttonY, r: firetruck.buttonRadius },
   ];
 }

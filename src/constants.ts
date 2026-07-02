@@ -350,3 +350,48 @@ export const EXCAVATOR_BUCKET_DARK = '#6C757D';  // bucket edge / teeth shading
 export const EXCAVATOR_TRACK_COLOR = '#33383F';  // rubber tracks
 export const EXCAVATOR_WHEEL_COLOR = '#1F2329';  // wheel hubs
 export const EXCAVATOR_DETAIL_COLOR = '#2A2F38'; // exhaust stack, panel lines
+
+// ── Firefighter (independent ground vehicle) ───────────────────────────────────
+// A wheeled fire truck summoned from its own button (the 6th in the left vehicle
+// column). It trundles along the floor to get under the nearest balloon, swivels a
+// roof-mounted water monitor to aim at it, and hoses an upward fan of water — every
+// balloon caught in the spray rises slowly while it is wet, recovering once clear
+// (it claims nothing, like the rain cloud). The slow runs through the balloon's
+// shared wet-slow channel, so rain and the hose compose (whichever wets more wins).
+export const FIRETRUCK_LIFETIME = 30;   // seconds the truck stays out
+export const FIRETRUCK_COOLDOWN = 35;   // seconds before it can be summoned again
+export const FIRETRUCK_FADE_DURATION = 1.2; // seconds it fades out at end of life
+export const FIRETRUCK_SIZE_RATIO = 0.2;    // body length relative to screen width
+export const FIRETRUCK_MIN_SIZE = 112;      // CSS px floor so it stays visible
+export const FIRETRUCK_DRIVE_SPEED = 215;   // CSS px/s — how fast the truck chases its target's x
+export const FIRETRUCK_GROUND_LOCAL = 0.40; // body centre sits this×size above the screen bottom
+export const FIRETRUCK_BODY_HALF_RATIO = 0.5; // half the wheelbase footprint; the drive/clamp keeps this on-screen
+// Roof water monitor (the swivelling cannon) and its aiming:
+export const FIRETRUCK_NOZZLE_DX = -0.10;   // monitor pivot offset from the body centre (×size) — sits over the rear deck
+export const FIRETRUCK_NOZZLE_DY = -0.42;   // …and this far above it on a standpipe (negative = up)
+export const FIRETRUCK_MAX_SWIVEL = 1.15;   // radians the monitor may swing either side of straight up (~66°)
+export const FIRETRUCK_AIM_SPEED = 4.6;     // rad/s the monitor eases toward its target aim
+// The water jet (an upward fan from the nozzle):
+export const FIRETRUCK_SPRAY_RANGE_RATIO = 3.6; // jet reach relative to body length (size)
+export const FIRETRUCK_SPRAY_HALF_ANGLE = 0.22; // half-angle of the spray cone (~13°); balloons within it get wet
+// Wet-slow applied to balloons under the jet. Drives the same transient slow channel
+// as the rain (see Balloon.applyWaterSlow / RAIN_SLOW_RECOVERY for the dry-off rate).
+export const FIRETRUCK_SLOW_FACTOR = 0.32;  // balloons under the hose rise at 32% speed
+// Falling-jet droplets (purely visual — drawn procedurally from the truck's anim clock):
+export const FIRETRUCK_SPRAY_DROPS = 24;    // droplet streaks in flight along the jet
+export const FIRETRUCK_SPRAY_SPEED = 640;   // CSS px/s droplet travel speed along the jet
+export const FIRETRUCK_SPRAY_DROP_LENGTH = 13; // CSS px streak length
+
+export const FIRETRUCK_BODY_COLOR = '#E23B2E';  // fire-engine red
+export const FIRETRUCK_BODY_DARK = '#A81C14';   // shading / button outline
+export const FIRETRUCK_CAB_COLOR = '#F0564A';   // lighter red cab
+export const FIRETRUCK_WINDOW_COLOR = '#BFE3FF'; // glass (matches the others)
+export const FIRETRUCK_TRIM_COLOR = '#F4F6F8';  // white safety stripe
+export const FIRETRUCK_WHEEL_COLOR = '#2A2F38'; // tyres
+export const FIRETRUCK_WHEEL_HUB = '#C9CED4';   // silver hubs
+export const FIRETRUCK_MONITOR_COLOR = '#9AA4AE'; // steel water monitor
+export const FIRETRUCK_MONITOR_DARK = '#6C757D';  // monitor shading
+export const FIRETRUCK_BEACON_COLOR = '#FFC043'; // amber roof beacon
+export const FIRETRUCK_DETAIL_COLOR = '#2A2F38'; // ladder, bumper, panel lines
+export const FIRETRUCK_WATER_COLOR = '#5FB0E6';  // cheerful spray blue (matches the rain)
+export const FIRETRUCK_WATER_LIGHT = '#BFE3FF';  // misty highlight near the jet edges

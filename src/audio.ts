@@ -757,4 +757,75 @@ export class AudioManager {
     osc.start(now);
     osc.stop(now + 0.06);
   }
+
+  // ── Fire truck sounds ────────────────────────────────────────────────────────
+
+  // Fire truck summon: a cheerful two-whoop siren over a rumbling engine, capped with
+  // a soft water-whoosh as the hose opens up.
+  playFiretruckSpawn(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+
+    // Engine rumble underneath.
+    const engine = ctx.createOscillator();
+    const engineGain = ctx.createGain();
+    const lowpass = ctx.createBiquadFilter();
+    engine.type = 'sawtooth';
+    engine.frequency.setValueAtTime(58, now);
+    engine.frequency.linearRampToValueAtTime(88, now + 0.5);
+    engine.frequency.linearRampToValueAtTime(74, now + 0.9);
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 760;
+    engineGain.gain.setValueAtTime(0, now);
+    engineGain.gain.linearRampToValueAtTime(0.1, now + 0.12);
+    engineGain.gain.linearRampToValueAtTime(0, now + 0.95);
+    engine.connect(lowpass);
+    lowpass.connect(engineGain);
+    engineGain.connect(ctx.destination);
+    engine.start(now);
+    engine.stop(now + 0.95);
+
+    // Siren: two "wee-ooo" whoops sweeping up then down.
+    const siren = ctx.createOscillator();
+    const sirenGain = ctx.createGain();
+    siren.type = 'triangle';
+    const whoop = (t0: number) => {
+      siren.frequency.setValueAtTime(620, t0);
+      siren.frequency.linearRampToValueAtTime(990, t0 + 0.2);
+      siren.frequency.linearRampToValueAtTime(640, t0 + 0.4);
+    };
+    whoop(now);
+    whoop(now + 0.42);
+    sirenGain.gain.setValueAtTime(0.0001, now);
+    sirenGain.gain.linearRampToValueAtTime(0.08, now + 0.05);
+    sirenGain.gain.setValueAtTime(0.08, now + 0.82);
+    sirenGain.gain.exponentialRampToValueAtTime(0.001, now + 0.92);
+    siren.connect(sirenGain);
+    sirenGain.connect(ctx.destination);
+    siren.start(now);
+    siren.stop(now + 0.92);
+
+    // Water-whoosh tail: band-passed noise swelling in as the jet starts.
+    const dur = 0.5;
+    const bufferSize = Math.ceil(ctx.sampleRate * dur);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(1400, now + 0.7);
+    bandpass.frequency.linearRampToValueAtTime(2400, now + 1.0);
+    bandpass.Q.value = 0.7;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.0001, now + 0.7);
+    noiseGain.gain.linearRampToValueAtTime(0.07, now + 0.86);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 1.18);
+    noise.connect(bandpass);
+    bandpass.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now + 0.7);
+    noise.stop(now + 1.2);
+  }
 }

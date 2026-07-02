@@ -26,6 +26,7 @@ import {
   SPECIAL_BIRD_COLOR,
   RAIN_SLOW_FACTOR,
   RAIN_SLOW_RECOVERY,
+  FIRETRUCK_SLOW_FACTOR,
 } from './constants';
 
 export type BalloonState = 'floating' | 'squeezing' | 'popping' | 'dead';
@@ -61,10 +62,12 @@ export class Balloon {
   // the other vehicles all skip a loaded balloon).
   loaded: boolean = false;
 
-  // Rise-speed multiplier (1 = full speed). The rain cloud drives this down toward
-  // RAIN_SLOW_FACTOR each frame a balloon sits in its downpour; it recovers back to
-  // 1 on its own once clear, so the slow is purely transient (no cloud ↔ balloon
-  // ownership needed). See RainCloudManager.
+  // Rise-speed multiplier (1 = full speed) — the shared "wet" slow channel. The rain
+  // cloud and the firefighter's hose each drive this down toward their slow floor
+  // (RAIN_SLOW_FACTOR / FIRETRUCK_SLOW_FACTOR) each frame a balloon sits under their
+  // water; whichever wets more wins (it only ever clamps lower). It recovers back to
+  // 1 on its own once clear, so the slow is purely transient — no source ↔ balloon
+  // ownership needed. See RainCloudManager / FiretruckManager.
   rainSlow: number = 1;
 
   // Special type / finale
@@ -153,6 +156,14 @@ export class Balloon {
   // so overlapping calls are harmless; recovery happens in the per-frame update.
   applyRainSlow(): void {
     this.rainSlow = Math.min(this.rainSlow, RAIN_SLOW_FACTOR);
+  }
+
+  // The firefighter calls this each frame a balloon is in its water jet — the same
+  // transient wet-slow as the rain, just toward the hose's own floor. Shares the
+  // rainSlow channel (clamps lower), so a balloon under both rain and hose simply
+  // takes whichever slow is stronger.
+  applyWaterSlow(): void {
+    this.rainSlow = Math.min(this.rainSlow, FIRETRUCK_SLOW_FACTOR);
   }
 
   hitTest(px: number, py: number): boolean {

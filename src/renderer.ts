@@ -66,6 +66,24 @@ import {
   EXCAVATOR_TRACK_COLOR,
   EXCAVATOR_WHEEL_COLOR,
   EXCAVATOR_DETAIL_COLOR,
+  FIRETRUCK_NOZZLE_DX,
+  FIRETRUCK_NOZZLE_DY,
+  FIRETRUCK_SPRAY_DROPS,
+  FIRETRUCK_SPRAY_SPEED,
+  FIRETRUCK_SPRAY_DROP_LENGTH,
+  FIRETRUCK_BODY_COLOR,
+  FIRETRUCK_BODY_DARK,
+  FIRETRUCK_CAB_COLOR,
+  FIRETRUCK_WINDOW_COLOR,
+  FIRETRUCK_TRIM_COLOR,
+  FIRETRUCK_WHEEL_COLOR,
+  FIRETRUCK_WHEEL_HUB,
+  FIRETRUCK_MONITOR_COLOR,
+  FIRETRUCK_MONITOR_DARK,
+  FIRETRUCK_BEACON_COLOR,
+  FIRETRUCK_DETAIL_COLOR,
+  FIRETRUCK_WATER_COLOR,
+  FIRETRUCK_WATER_LIGHT,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
 import type { ActiveEvent, Bubble } from './surprise';
@@ -75,6 +93,7 @@ import type { BulldozerManager } from './bulldozer';
 import type { TractorManager } from './tractor';
 import type { RainCloudManager } from './raincloud';
 import type { ExcavatorManager } from './excavator';
+import type { FiretruckManager } from './firetruck';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -2135,6 +2154,327 @@ export class Renderer {
       ctx.lineWidth = Math.max(3, r * 0.12);
       ctx.lineCap = 'round';
       ctx.strokeStyle = EXCAVATOR_BODY_DARK;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ── Fire truck: wheeled body, standpipe monitor, upward water jet ────────────
+
+  // The fire truck is drawn straight in world space: the wheeled body sits around
+  // (truck.x, truck.y) and the roof monitor swivels to truck.aimAngle. The jet is
+  // drawn first so the body and monitor read over its base.
+  drawFiretruck(truck: FiretruckManager): void {
+    const alpha = truck.alpha;
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (truck.isSpraying) {
+      this.drawFiretruckSpray(truck, alpha);
+    }
+    this.drawFiretruckRig(truck.x, truck.y, truck.size, truck.wheelPhase, truck.aimAngle);
+    ctx.restore();
+  }
+
+  // Body + swivelling monitor, from an explicit base centre and aim, so both the live
+  // truck and its button icon share it.
+  private drawFiretruckRig(cx: number, cy: number, s: number, wheelPhase: number, aimAngle: number): void {
+    this.drawFiretruckBody(cx, cy, s, wheelPhase);
+    this.drawFiretruckMonitor(cx + FIRETRUCK_NOZZLE_DX * s, cy + FIRETRUCK_NOZZLE_DY * s, s, aimAngle);
+  }
+
+  // A clean fire-truck tyre: dark rubber, a silver hub with a few spokes, hub cap.
+  private drawFiretruckWheel(wx: number, wy: number, wr: number, wheelPhase: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = FIRETRUCK_WHEEL_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = this.shadeColor(FIRETRUCK_WHEEL_COLOR, 0.22);
+    ctx.lineWidth = wr * 0.09;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.8, 0, Math.PI * 2);
+    ctx.stroke();
+    // Silver hub.
+    ctx.fillStyle = FIRETRUCK_WHEEL_HUB;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    // A few spokes that turn with the wheel.
+    ctx.strokeStyle = this.shadeColor(FIRETRUCK_WHEEL_HUB, -0.25);
+    ctx.lineWidth = Math.max(1.5, wr * 0.1);
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 5; k++) {
+      const a = wheelPhase + (k * Math.PI * 2) / 5;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx + Math.cos(a) * wr * 0.42, wy + Math.sin(a) * wr * 0.42);
+      ctx.stroke();
+    }
+    ctx.fillStyle = FIRETRUCK_DETAIL_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Side-view fire truck drawn nose-to-the-right around (cx, cy). Always faces right,
+  // so no rotation/mirroring is needed. A chunky red apparatus body with a cab up
+  // front, a white safety stripe, a roof beacon, and the standpipe the monitor rides.
+  private drawFiretruckBody(cx: number, cy: number, s: number, wheelPhase: number): void {
+    const ctx = this.ctx;
+    const red = FIRETRUCK_BODY_COLOR;
+    const redDark = FIRETRUCK_BODY_DARK;
+    const redLight = this.shadeColor(red, 0.22);
+
+    const rwX = -0.27 * s, fwX = 0.29 * s, wY = 0.26 * s, wR = 0.17 * s; // wheels
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Wheels first so the body overlaps their tops.
+    this.drawFiretruckWheel(rwX, wY, wR, wheelPhase);
+    this.drawFiretruckWheel(fwX, wY, wR, wheelPhase);
+
+    // Dark chassis bridging the wheels at the axle line — sits low so it shows below
+    // the body belly (which bottoms at the wheel-centre line), filling the undercarriage.
+    ctx.fillStyle = FIRETRUCK_DETAIL_COLOR;
+    this.roundedRectPath(-0.28 * s, 0.22 * s, 0.58 * s, 0.10 * s, 0.03 * s);
+    ctx.fill();
+
+    // Apparatus body (rear/pump section), with a top sheen and a lower shade.
+    ctx.fillStyle = red;
+    this.roundedRectPath(-0.50 * s, -0.06 * s, 0.68 * s, 0.32 * s, 0.05 * s);
+    ctx.fill();
+    ctx.fillStyle = redLight;
+    this.roundedRectPath(-0.48 * s, -0.06 * s, 0.40 * s, 0.04 * s, 0.02 * s);
+    ctx.fill();
+    ctx.fillStyle = redDark;
+    this.roundedRectPath(-0.48 * s, 0.20 * s, 0.64 * s, 0.06 * s, 0.025 * s);
+    ctx.fill();
+
+    // Equipment-bay roller-door lines along the body side.
+    ctx.strokeStyle = redDark;
+    ctx.lineWidth = Math.max(1, s * 0.01);
+    for (let i = 0; i < 3; i++) {
+      const bx = -0.44 * s + i * 0.18 * s;
+      this.roundedRectPath(bx, 0.0 * s, 0.15 * s, 0.15 * s, 0.02 * s);
+      ctx.stroke();
+    }
+
+    // Standpipe the roof monitor rides, rising from the rear deck to the pivot.
+    const pipeX = FIRETRUCK_NOZZLE_DX * s;
+    const pipeTop = FIRETRUCK_NOZZLE_DY * s;
+    ctx.fillStyle = FIRETRUCK_MONITOR_DARK;
+    this.roundedRectPath(pipeX - 0.035 * s, pipeTop, 0.07 * s, (-0.06 * s) - pipeTop, 0.02 * s);
+    ctx.fill();
+    // Mount base where the pipe meets the deck.
+    ctx.fillStyle = redDark;
+    this.roundedRectPath(pipeX - 0.09 * s, -0.10 * s, 0.18 * s, 0.07 * s, 0.02 * s);
+    ctx.fill();
+
+    // Cab up front: a rounded block with a slanted windshield.
+    ctx.fillStyle = FIRETRUCK_CAB_COLOR;
+    this.roundedRectPath(0.14 * s, -0.12 * s, 0.34 * s, 0.38 * s, 0.06 * s);
+    ctx.fill();
+    // Windshield (framed light-blue glass) with a glint.
+    ctx.fillStyle = FIRETRUCK_WINDOW_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(0.21 * s, 0.04 * s);
+    ctx.lineTo(0.21 * s, -0.05 * s);
+    ctx.quadraticCurveTo(0.22 * s, -0.085 * s, 0.27 * s, -0.085 * s);
+    ctx.lineTo(0.45 * s, -0.085 * s);
+    ctx.lineTo(0.45 * s, 0.04 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+    ctx.beginPath();
+    ctx.moveTo(0.27 * s, -0.06 * s);
+    ctx.lineTo(0.34 * s, -0.06 * s);
+    ctx.lineTo(0.27 * s, 0.03 * s);
+    ctx.lineTo(0.235 * s, 0.03 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // White safety stripe running the length of the truck.
+    ctx.fillStyle = FIRETRUCK_TRIM_COLOR;
+    this.roundedRectPath(-0.50 * s, 0.07 * s, 0.98 * s, 0.045 * s, 0.02 * s);
+    ctx.fill();
+
+    // Front bumper, grille and a round headlight with a glint.
+    ctx.fillStyle = FIRETRUCK_DETAIL_COLOR;
+    this.roundedRectPath(0.45 * s, 0.05 * s, 0.045 * s, 0.18 * s, 0.015 * s);
+    ctx.fill();
+    ctx.fillStyle = FIRETRUCK_WHEEL_HUB;
+    ctx.beginPath();
+    ctx.arc(0.455 * s, 0.0 * s, 0.032 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.beginPath();
+    ctx.arc(0.448 * s, -0.01 * s, 0.011 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Amber roof beacon on the cab with a highlight.
+    ctx.fillStyle = FIRETRUCK_BEACON_COLOR;
+    ctx.beginPath();
+    ctx.arc(0.30 * s, -0.12 * s, 0.045 * s, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.arc(0.288 * s, -0.13 * s, 0.014 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // The swivelling water monitor at (px, py): a knuckle joint and a short steel barrel
+  // pointing along the aim, with a flared nozzle the jet bursts from.
+  private drawFiretruckMonitor(px: number, py: number, s: number, aimAngle: number): void {
+    const ctx = this.ctx;
+    const barrel = 0.17 * s;
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(aimAngle);
+    // After rotate, local +x runs along the aim direction.
+    // Barrel.
+    ctx.fillStyle = FIRETRUCK_MONITOR_DARK;
+    this.roundedRectPath(-0.01 * s, -0.045 * s, barrel + 0.02 * s, 0.09 * s, 0.025 * s);
+    ctx.fill();
+    ctx.fillStyle = FIRETRUCK_MONITOR_COLOR;
+    this.roundedRectPath(0.0, -0.032 * s, barrel, 0.064 * s, 0.02 * s);
+    ctx.fill();
+    // Flared nozzle tip.
+    ctx.fillStyle = FIRETRUCK_MONITOR_DARK;
+    this.roundedRectPath(barrel - 0.01 * s, -0.05 * s, 0.04 * s, 0.10 * s, 0.015 * s);
+    ctx.fill();
+    ctx.restore();
+
+    // Knuckle joint at the pivot (drawn unrotated so it reads as a ball mount).
+    ctx.fillStyle = FIRETRUCK_MONITOR_DARK;
+    ctx.beginPath();
+    ctx.arc(px, py, 0.06 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = FIRETRUCK_MONITOR_COLOR;
+    ctx.beginPath();
+    ctx.arc(px, py, 0.035 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // The upward water jet: a soft translucent cone plus procedural droplet streaks that
+  // loop out from the nozzle along the aim, derived from the truck's anim clock (so no
+  // per-drop state is stored), like the rain's downpour.
+  private drawFiretruckSpray(truck: FiretruckManager, alpha: number): void {
+    const ctx = this.ctx;
+    const nx = truck.nozzleX;
+    const ny = truck.nozzleY;
+    const a = truck.aimAngle;
+    const range = truck.sprayRange;
+    const half = truck.sprayHalfAngle;
+
+    // Soft misty cone, denser near the nozzle.
+    ctx.save();
+    const grad = ctx.createRadialGradient(nx, ny, 0, nx, ny, range);
+    grad.addColorStop(0, FIRETRUCK_WATER_LIGHT);
+    grad.addColorStop(0.5, FIRETRUCK_WATER_COLOR);
+    grad.addColorStop(1, 'rgba(95, 176, 230, 0)');
+    ctx.globalAlpha = alpha * 0.32;
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(nx, ny);
+    ctx.arc(nx, ny, range, a - half, a + half);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Droplet streaks fanning out within the cone.
+    ctx.save();
+    ctx.strokeStyle = FIRETRUCK_WATER_COLOR;
+    ctx.lineCap = 'round';
+    const cycle = range + FIRETRUCK_SPRAY_DROP_LENGTH;
+    for (let i = 0; i < FIRETRUCK_SPRAY_DROPS; i++) {
+      const ang = a + (this.hash01(i) * 2 - 1) * half;
+      const ca = Math.cos(ang);
+      const sa = Math.sin(ang);
+      const d = (truck.animTime * FIRETRUCK_SPRAY_SPEED + this.hash01(i + 101) * cycle) % cycle;
+      // Clamp the streak's head and tail into [0, range] so it slides out from the
+      // nozzle and fades off at the cone edge — never poking back behind the pivot or
+      // overshooting the wedge (mirrors the rain's clipped/offset streaks).
+      const head = Math.min(range, d);
+      const tail = Math.max(0, d - FIRETRUCK_SPRAY_DROP_LENGTH);
+      // Streaks thin and fade as they fly out, reading as the jet breaking into mist.
+      const fade = 1 - d / cycle;
+      ctx.globalAlpha = alpha * (0.25 + 0.6 * fade);
+      ctx.lineWidth = Math.max(1, 3 * fade);
+      ctx.beginPath();
+      ctx.moveTo(nx + ca * head, ny + sa * head);
+      ctx.lineTo(nx + ca * tail, ny + sa * tail);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawFiretruckButton(truck: FiretruckManager): void {
+    if (truck.isActive) return; // truck is out — no button
+    const ctx = this.ctx;
+    const cx = truck.buttonX;
+    const cy = truck.buttonY;
+    const r = truck.buttonRadius;
+    const available = truck.isAvailable;
+
+    // Invite-to-tap pulse glow when available.
+    if (available) {
+      const pulse = truck.buttonPulse;
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.35 * pulse;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.1 + 0.12 * pulse), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Button disc.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = available ? 'rgba(255, 255, 255, 0.9)' : 'rgba(214, 222, 230, 0.75)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.strokeStyle = available ? FIRETRUCK_BODY_DARK : 'rgba(120, 140, 160, 0.8)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Fire-truck icon inside (dimmed during cooldown), level and facing right with the
+    // monitor pointing up, plus a couple of water droplets above the nozzle.
+    const si = r * 1.32;
+    const icy = cy + r * 0.12;
+    ctx.save();
+    ctx.globalAlpha = available ? 1 : 0.4;
+    this.drawFiretruckRig(cx - r * 0.06, icy, si, 0, -Math.PI / 2);
+    ctx.strokeStyle = FIRETRUCK_WATER_COLOR;
+    ctx.lineWidth = Math.max(2, r * 0.07);
+    ctx.lineCap = 'round';
+    const jx = cx - r * 0.06 + FIRETRUCK_NOZZLE_DX * si;
+    const jy = icy + FIRETRUCK_NOZZLE_DY * si;
+    const dropBottom = jy - 0.24 * si; // just above the monitor's nozzle tip, clear of the barrel
+    for (let k = -1; k <= 1; k++) {
+      const dx = jx + k * r * 0.15;
+      ctx.beginPath();
+      ctx.moveTo(dx, dropBottom);
+      ctx.lineTo(dx + k * r * 0.05, dropBottom - r * 0.2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Cooldown loading ring.
+    if (!available) {
+      const progress = truck.cooldownProgress;
+      ctx.save();
+      ctx.lineWidth = Math.max(3, r * 0.12);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = FIRETRUCK_BODY_DARK;
       ctx.beginPath();
       ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
       ctx.stroke();

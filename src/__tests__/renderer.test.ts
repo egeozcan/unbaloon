@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Renderer } from '../renderer';
 import { BulldozerManager } from '../bulldozer';
 import { ExcavatorManager } from '../excavator';
+import { FiretruckManager } from '../firetruck';
 
 // A minimal stand-in for CanvasRenderingContext2D that records save/restore
 // balance and swallows every drawing call. Enough to smoke-test that the canvas
@@ -138,6 +139,61 @@ describe('Renderer excavator drawing', () => {
         ex.update(1000, [], () => {}); // -> cooldown
       }
       renderer.drawExcavatorButton(ex);
+      expect(mock.depth()).toBe(0);
+      expect(mock.minDepth()).toBe(0);
+    }
+  });
+});
+
+describe('Renderer fire truck drawing', () => {
+  function settled(): FiretruckManager {
+    const t = new FiretruckManager();
+    t.setScreenSize(800, 600);
+    t.spawn();
+    for (let i = 0; i < 40; i++) t.update(1 / 60, []);
+    return t;
+  }
+
+  it('draws without throwing and balances save/restore (jet on)', () => {
+    const mock = makeMockCtx();
+    const renderer = new Renderer(mock.ctx);
+    renderer.drawFiretruck(settled());
+    expect(mock.depth()).toBe(0);
+    expect(mock.minDepth()).toBe(0);
+  });
+
+  it('balances save/restore across a range of monitor aims', () => {
+    for (const aim of [-Math.PI / 2, -0.5, -2.4, -Math.PI / 2 + 1.1, -Math.PI / 2 - 1.1]) {
+      const mock = makeMockCtx();
+      const renderer = new Renderer(mock.ctx);
+      const t = settled();
+      (t as unknown as { aimAngle: number }).aimAngle = aim;
+      renderer.drawFiretruck(t);
+      expect(mock.depth()).toBe(0);
+      expect(mock.minDepth()).toBe(0);
+    }
+  });
+
+  it('skips drawing entirely while invisible (alpha 0)', () => {
+    const mock = makeMockCtx();
+    const renderer = new Renderer(mock.ctx);
+    const t = new FiretruckManager();
+    t.setScreenSize(800, 600); // idle → alpha 0
+    renderer.drawFiretruck(t);
+    expect(mock.maxDepth()).toBe(0);
+  });
+
+  it('draws the spawn button (available and during cooldown) without leaking saves', () => {
+    for (const cooling of [false, true]) {
+      const mock = makeMockCtx();
+      const renderer = new Renderer(mock.ctx);
+      const t = new FiretruckManager();
+      t.setScreenSize(800, 600);
+      if (cooling) {
+        t.spawn();
+        t.update(1000, []); // -> cooldown
+      }
+      renderer.drawFiretruckButton(t);
       expect(mock.depth()).toBe(0);
       expect(mock.minDepth()).toBe(0);
     }

@@ -9,6 +9,7 @@ import { BulldozerManager } from './bulldozer';
 import { TractorManager } from './tractor';
 import { RainCloudManager } from './raincloud';
 import { ExcavatorManager } from './excavator';
+import { FiretruckManager } from './firetruck';
 import {
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
@@ -50,6 +51,7 @@ export class Game {
   private tractor: TractorManager;
   private rainCloud: RainCloudManager;
   private excavator: ExcavatorManager;
+  private firetruck: FiretruckManager;
   private previousPhase: Phase = 1;
 
   // Surprise counter
@@ -78,6 +80,7 @@ export class Game {
     this.tractor = new TractorManager();
     this.rainCloud = new RainCloudManager();
     this.excavator = new ExcavatorManager();
+    this.firetruck = new FiretruckManager();
   }
 
   start(): void {
@@ -193,6 +196,11 @@ export class Game {
       () => this.audio.playExcavatorGrab(),
     );
 
+    // Update fire truck: an autonomous truck that trundles along the floor, gets under
+    // the nearest balloon and hoses an upward jet that slows every balloon caught in
+    // the spray (it claims nothing — wet balloons recover once they drift clear).
+    this.firetruck.update(dt, this.balloons);
+
     // Update surprise events
     this.surprise.update(dt);
 
@@ -236,6 +244,10 @@ export class Game {
     // simply doesn't draw then).
     this.renderer.drawExcavator(this.excavator);
 
+    // Fire truck is a ground vehicle too — drawn over the balloons so its water jet
+    // reads against the balloons it is wetting (alpha 0 when not out).
+    this.renderer.drawFiretruck(this.firetruck);
+
     // Darts and helicopter ride above the balloons
     this.renderer.drawDarts(this.helicopter.darts);
     this.renderer.drawHelicopter(this.helicopter);
@@ -266,6 +278,7 @@ export class Game {
       this.renderer.drawBulldozerButton(this.bulldozer);
       this.renderer.drawTractorButton(this.tractor);
       this.renderer.drawExcavatorButton(this.excavator);
+      this.renderer.drawFiretruckButton(this.firetruck);
       // Effect buttons live on the opposite (right) edge.
       this.renderer.drawRainCloudButton(this.rainCloud);
     }
@@ -393,6 +406,10 @@ export class Game {
       }
       if (this.excavator.trySpawn(x, y)) {
         this.audio.playExcavatorSpawn();
+        return;
+      }
+      if (this.firetruck.trySpawn(x, y)) {
+        this.audio.playFiretruckSpawn();
         return;
       }
       if (this.rainCloud.trySpawn(x, y)) {
@@ -526,6 +543,7 @@ export class Game {
     this.tractor.clear();
     this.rainCloud.clear();
     this.excavator.clear();
+    this.firetruck.clear();
   }
 
   private updateFinale(dt: number): void {
@@ -607,6 +625,8 @@ export class Game {
     this.rainCloud.setScreenSize(this.width, this.height);
     this.excavator.reset();
     this.excavator.setScreenSize(this.width, this.height);
+    this.firetruck.reset();
+    this.firetruck.setScreenSize(this.width, this.height);
     this.focusX = this.width / 2;
     this.focusY = this.height / 2;
     this.session.reset();
@@ -701,5 +721,6 @@ export class Game {
     this.tractor.setScreenSize(this.width, this.height);
     this.rainCloud.setScreenSize(this.width, this.height);
     this.excavator.setScreenSize(this.width, this.height);
+    this.firetruck.setScreenSize(this.width, this.height);
   }
 }
