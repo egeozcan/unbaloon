@@ -395,3 +395,43 @@ export const FIRETRUCK_BEACON_COLOR = '#FFC043'; // amber roof beacon
 export const FIRETRUCK_DETAIL_COLOR = '#2A2F38'; // ladder, bumper, panel lines
 export const FIRETRUCK_WATER_COLOR = '#5FB0E6';  // cheerful spray blue (matches the rain)
 export const FIRETRUCK_WATER_LIGHT = '#BFE3FF';  // misty highlight near the jet edges
+
+// ── Wheel loader (independent ground support vehicle) ──────────────────────────
+// A wheeled front loader summoned from its own button — the 2nd in the RIGHT-edge
+// "effect" column, below the rain cloud (the left column is full). Unlike the other
+// vehicles it pops nothing: it trundles along the floor, tucks its raised bucket in
+// beside a low balloon on the side away from the nearest popping vehicle (helicopter,
+// plane, bulldozer, tractor or excavator), and shoves that balloon horizontally under
+// the popper so it can be finished off. It claims a balloon only while shoving it
+// (freezing its drift like a finger drag / the bulldozer), and releases it once it is
+// delivered near a popper. With no popper out there is nothing to shove toward, so it
+// simply idles back toward centre.
+export const WHEELLOADER_LIFETIME = 30;   // seconds the loader stays out
+export const WHEELLOADER_COOLDOWN = 35;   // seconds before it can be summoned again
+export const WHEELLOADER_FADE_DURATION = 1.2; // seconds it fades out at end of life
+export const WHEELLOADER_SIZE_RATIO = 0.19;   // body length relative to screen width
+export const WHEELLOADER_MIN_SIZE = 104;      // CSS px floor so it stays visible
+export const WHEELLOADER_DRIVE_SPEED = 240;   // CSS px/s — how fast the loader chases its shove position
+export const WHEELLOADER_GROUND_LOCAL = 0.40; // body centre sits this×size above the screen bottom
+export const WHEELLOADER_BODY_HALF_RATIO = 0.52; // half the wheelbase footprint; the drive/clamp keeps this on-screen
+// Front bucket geometry (in body-length / size fractions):
+export const WHEELLOADER_BUCKET_DX = 0.62;    // bucket front reaches this far ahead of the body centre (on the facing side)
+export const WHEELLOADER_BUCKET_UP = 0.52;    // bucket is raised this far above the body centre to catch low balloons
+export const WHEELLOADER_REACH_V_RATIO = 0.72; // a balloon is catchable if its centre is within this×size of the bucket height
+// Shoving:
+export const WHEELLOADER_SHOVE_SPEED = 205;   // CSS px/s the caught balloon is pushed toward the popper
+export const WHEELLOADER_CONTACT_RATIO = 0.10; // in contact (and shoving) once the body is within this×size of its shove position
+export const WHEELLOADER_DELIVER_RATIO = 0.85; // a balloon within this×size of a popper's x counts as delivered (released, not re-targeted)
+
+export const WHEELLOADER_BODY_COLOR = '#2E7DD1';  // loader blue (distinct from the dozer / excavator / truck / tractor)
+export const WHEELLOADER_BODY_DARK = '#1C5AA0';   // shading / button outline
+export const WHEELLOADER_CAB_COLOR = '#3E92E6';   // lighter blue cab
+export const WHEELLOADER_WINDOW_COLOR = '#BFE3FF'; // glass (matches the others)
+export const WHEELLOADER_ARM_COLOR = '#3A88D8';   // lift arms
+export const WHEELLOADER_ARM_DARK = '#245F9E';    // arm shading / outline
+export const WHEELLOADER_BUCKET_COLOR = '#9AA4AE'; // steel bucket
+export const WHEELLOADER_BUCKET_DARK = '#6C757D';  // bucket edge / teeth shading
+export const WHEELLOADER_WHEEL_COLOR = '#2A2F38'; // tyres
+export const WHEELLOADER_WHEEL_HUB = '#C9CED4';   // silver hubs
+export const WHEELLOADER_BEACON_COLOR = '#FFC043'; // amber roof beacon
+export const WHEELLOADER_DETAIL_COLOR = '#2A2F38'; // bumper, panel lines

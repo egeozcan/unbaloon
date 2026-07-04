@@ -84,6 +84,20 @@ import {
   FIRETRUCK_DETAIL_COLOR,
   FIRETRUCK_WATER_COLOR,
   FIRETRUCK_WATER_LIGHT,
+  WHEELLOADER_BUCKET_DX,
+  WHEELLOADER_BUCKET_UP,
+  WHEELLOADER_BODY_COLOR,
+  WHEELLOADER_BODY_DARK,
+  WHEELLOADER_CAB_COLOR,
+  WHEELLOADER_WINDOW_COLOR,
+  WHEELLOADER_ARM_COLOR,
+  WHEELLOADER_ARM_DARK,
+  WHEELLOADER_BUCKET_COLOR,
+  WHEELLOADER_BUCKET_DARK,
+  WHEELLOADER_WHEEL_COLOR,
+  WHEELLOADER_WHEEL_HUB,
+  WHEELLOADER_BEACON_COLOR,
+  WHEELLOADER_DETAIL_COLOR,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
 import type { ActiveEvent, Bubble } from './surprise';
@@ -94,6 +108,7 @@ import type { TractorManager } from './tractor';
 import type { RainCloudManager } from './raincloud';
 import type { ExcavatorManager } from './excavator';
 import type { FiretruckManager } from './firetruck';
+import type { WheelLoaderManager } from './wheelloader';
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -2475,6 +2490,276 @@ export class Renderer {
       ctx.lineWidth = Math.max(3, r * 0.12);
       ctx.lineCap = 'round';
       ctx.strokeStyle = FIRETRUCK_BODY_DARK;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ── Wheel loader: wheeled body, cab, lift arms + raised front bucket ──────────
+
+  drawWheelLoader(loader: WheelLoaderManager): void {
+    const alpha = loader.alpha;
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    this.drawWheelLoaderRig(loader.x, loader.y, loader.size, loader.facing, loader.wheelPhase);
+    ctx.restore();
+  }
+
+  // Body + lift arms + bucket, from an explicit centre / facing, so both the live loader
+  // and its button icon share it. Drawn nose-to-the-right, mirrored by `facing`.
+  private drawWheelLoaderRig(cx: number, cy: number, s: number, facing: number, wheelPhase: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(facing >= 0 ? 1 : -1, 1); // mirror horizontally when facing left
+    this.drawWheelLoaderShape(s, wheelPhase);
+    ctx.restore();
+  }
+
+  // A chunky loader tyre: dark rubber, a silver hub with spokes, a hub cap.
+  private drawWheelLoaderWheel(wx: number, wy: number, wr: number, wheelPhase: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = WHEELLOADER_WHEEL_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = this.shadeColor(WHEELLOADER_WHEEL_COLOR, 0.22);
+    ctx.lineWidth = wr * 0.09;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.82, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = WHEELLOADER_WHEEL_HUB;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.46, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = this.shadeColor(WHEELLOADER_WHEEL_HUB, -0.25);
+    ctx.lineWidth = Math.max(1.5, wr * 0.1);
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 5; k++) {
+      const a = wheelPhase + (k * Math.PI * 2) / 5;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx + Math.cos(a) * wr * 0.38, wy + Math.sin(a) * wr * 0.38);
+      ctx.stroke();
+    }
+    ctx.fillStyle = WHEELLOADER_DETAIL_COLOR;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // The loader body around the origin, facing right: two big tyres, a rear engine hood,
+  // an operator cab, and a front frame carrying the lift arms up to a raised bucket.
+  private drawWheelLoaderShape(s: number, wheelPhase: number): void {
+    const ctx = this.ctx;
+    const blue = WHEELLOADER_BODY_COLOR;
+    const blueDark = WHEELLOADER_BODY_DARK;
+    const blueLight = this.shadeColor(blue, 0.22);
+
+    const rwX = -0.30 * s, fwX = 0.30 * s, wY = 0.26 * s, wR = 0.20 * s;
+
+    // Wheels first so the body overlaps their tops.
+    this.drawWheelLoaderWheel(rwX, wY, wR, wheelPhase);
+    this.drawWheelLoaderWheel(fwX, wY, wR, wheelPhase);
+
+    // Dark chassis bridging the axles.
+    ctx.fillStyle = WHEELLOADER_DETAIL_COLOR;
+    this.roundedRectPath(-0.33 * s, 0.20 * s, 0.66 * s, 0.11 * s, 0.03 * s);
+    ctx.fill();
+
+    // Rear engine hood, with a top sheen and a lower shade.
+    ctx.fillStyle = blue;
+    this.roundedRectPath(-0.50 * s, -0.10 * s, 0.46 * s, 0.34 * s, 0.05 * s);
+    ctx.fill();
+    ctx.fillStyle = blueLight;
+    this.roundedRectPath(-0.48 * s, -0.10 * s, 0.30 * s, 0.045 * s, 0.02 * s);
+    ctx.fill();
+    ctx.fillStyle = blueDark;
+    this.roundedRectPath(-0.48 * s, 0.18 * s, 0.42 * s, 0.06 * s, 0.025 * s);
+    ctx.fill();
+
+    // Exhaust stack on the hood.
+    ctx.fillStyle = WHEELLOADER_DETAIL_COLOR;
+    this.roundedRectPath(-0.40 * s, -0.22 * s, 0.05 * s, 0.13 * s, 0.02 * s);
+    ctx.fill();
+
+    // Articulation joint (the waist the front frame pivots on).
+    ctx.fillStyle = blueDark;
+    this.roundedRectPath(-0.09 * s, -0.02 * s, 0.12 * s, 0.24 * s, 0.03 * s);
+    ctx.fill();
+
+    // Operator cab with a light-blue window and a glint.
+    ctx.fillStyle = WHEELLOADER_CAB_COLOR;
+    this.roundedRectPath(-0.11 * s, -0.25 * s, 0.25 * s, 0.25 * s, 0.05 * s);
+    ctx.fill();
+    ctx.fillStyle = WHEELLOADER_WINDOW_COLOR;
+    this.roundedRectPath(-0.06 * s, -0.21 * s, 0.16 * s, 0.15 * s, 0.03 * s);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+    ctx.beginPath();
+    ctx.moveTo(-0.02 * s, -0.20 * s);
+    ctx.lineTo(0.05 * s, -0.20 * s);
+    ctx.lineTo(-0.02 * s, -0.09 * s);
+    ctx.lineTo(-0.05 * s, -0.09 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Amber roof beacon.
+    ctx.fillStyle = WHEELLOADER_BEACON_COLOR;
+    ctx.beginPath();
+    ctx.arc(0.01 * s, -0.25 * s, 0.04 * s, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.arc(-0.005 * s, -0.26 * s, 0.013 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Front frame block over the front wheel (carries the lift arms).
+    ctx.fillStyle = blue;
+    this.roundedRectPath(0.03 * s, -0.02 * s, 0.30 * s, 0.24 * s, 0.05 * s);
+    ctx.fill();
+    ctx.fillStyle = blueDark;
+    this.roundedRectPath(0.03 * s, 0.16 * s, 0.30 * s, 0.06 * s, 0.02 * s);
+    ctx.fill();
+    // Headlight with a glint.
+    ctx.fillStyle = WHEELLOADER_WHEEL_HUB;
+    ctx.beginPath();
+    ctx.arc(0.32 * s, 0.02 * s, 0.03 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.beginPath();
+    ctx.arc(0.312 * s, 0.01 * s, 0.011 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Lift arms rising forward from the front frame to the raised bucket.
+    const bx = WHEELLOADER_BUCKET_DX * s;
+    const by = -WHEELLOADER_BUCKET_UP * s;
+    const px = 0.07 * s, py = -0.05 * s; // arm pivot on the frame
+    ctx.strokeStyle = WHEELLOADER_ARM_COLOR;
+    ctx.lineWidth = 0.10 * s;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(bx - 0.11 * s, by + 0.07 * s);
+    ctx.stroke();
+    ctx.strokeStyle = WHEELLOADER_ARM_DARK;
+    ctx.lineWidth = 0.028 * s;
+    ctx.beginPath();
+    ctx.moveTo(px, py + 0.035 * s);
+    ctx.lineTo(bx - 0.11 * s, by + 0.105 * s);
+    ctx.stroke();
+    // Pivot bolt.
+    ctx.fillStyle = WHEELLOADER_ARM_DARK;
+    ctx.beginPath();
+    ctx.arc(px, py, 0.04 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // The bucket at the arm end, tilted back to cradle a balloon.
+    this.drawWheelLoaderBucket(bx, by, s);
+  }
+
+  // A steel loader bucket around (bx, by): a back wall, a curved floor and a toothed
+  // front lip, opening up-and-forward so it scoops the balloon it shoves.
+  private drawWheelLoaderBucket(bx: number, by: number, s: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(bx, by);
+
+    // Scoop body.
+    ctx.fillStyle = WHEELLOADER_BUCKET_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-0.13 * s, -0.11 * s); // back-top
+    ctx.lineTo(-0.13 * s, 0.07 * s);  // back-bottom
+    ctx.quadraticCurveTo(-0.11 * s, 0.17 * s, 0.05 * s, 0.17 * s); // curved floor
+    ctx.lineTo(0.18 * s, 0.10 * s);   // front lip out
+    ctx.lineTo(0.18 * s, -0.03 * s);  // front-top
+    ctx.closePath();
+    ctx.fill();
+
+    // Back wall shade.
+    ctx.fillStyle = WHEELLOADER_BUCKET_DARK;
+    this.roundedRectPath(-0.14 * s, -0.12 * s, 0.05 * s, 0.30 * s, 0.02 * s);
+    ctx.fill();
+
+    // Toothed cutting edge along the front lip.
+    ctx.fillStyle = WHEELLOADER_BUCKET_DARK;
+    for (let k = 0; k < 3; k++) {
+      const tx = 0.06 * s + k * 0.05 * s;
+      ctx.beginPath();
+      ctx.moveTo(tx, 0.15 * s);
+      ctx.lineTo(tx + 0.03 * s, 0.15 * s);
+      ctx.lineTo(tx + 0.015 * s, 0.21 * s);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawWheelLoaderButton(loader: WheelLoaderManager): void {
+    if (loader.isActive) return; // loader is out — no button
+    const ctx = this.ctx;
+    const cx = loader.buttonX;
+    const cy = loader.buttonY;
+    const r = loader.buttonRadius;
+    const available = loader.isAvailable;
+
+    // Invite-to-tap pulse glow when available.
+    if (available) {
+      const pulse = loader.buttonPulse;
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.35 * pulse;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.1 + 0.12 * pulse), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Button disc.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = available ? 'rgba(255, 255, 255, 0.9)' : 'rgba(214, 222, 230, 0.75)';
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.strokeStyle = available ? WHEELLOADER_BODY_DARK : 'rgba(120, 140, 160, 0.8)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Loader icon inside (dimmed during cooldown), facing right with the bucket raised,
+    // plus a couple of motion chevrons ahead of the bucket to read as "shove".
+    const si = r * 1.12;
+    const icy = cy + r * 0.20;
+    ctx.save();
+    ctx.globalAlpha = available ? 1 : 0.4;
+    this.drawWheelLoaderRig(cx - r * 0.10, icy, si, 1, 0);
+    ctx.strokeStyle = WHEELLOADER_BODY_DARK;
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const chevBase = cx + r * 0.52;
+    const chevY = icy - WHEELLOADER_BUCKET_UP * si;
+    for (let k = 0; k < 2; k++) {
+      const gx = chevBase + k * r * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(gx, chevY - r * 0.14);
+      ctx.lineTo(gx + r * 0.13, chevY);
+      ctx.lineTo(gx, chevY + r * 0.14);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Cooldown loading ring.
+    if (!available) {
+      const progress = loader.cooldownProgress;
+      ctx.save();
+      ctx.lineWidth = Math.max(3, r * 0.12);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = WHEELLOADER_BODY_DARK;
       ctx.beginPath();
       ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
       ctx.stroke();

@@ -3,6 +3,7 @@ import { Renderer } from '../renderer';
 import { BulldozerManager } from '../bulldozer';
 import { ExcavatorManager } from '../excavator';
 import { FiretruckManager } from '../firetruck';
+import { WheelLoaderManager } from '../wheelloader';
 
 // A minimal stand-in for CanvasRenderingContext2D that records save/restore
 // balance and swallows every drawing call. Enough to smoke-test that the canvas
@@ -194,6 +195,54 @@ describe('Renderer fire truck drawing', () => {
         t.update(1000, []); // -> cooldown
       }
       renderer.drawFiretruckButton(t);
+      expect(mock.depth()).toBe(0);
+      expect(mock.minDepth()).toBe(0);
+    }
+  });
+});
+
+describe('Renderer wheel loader drawing', () => {
+  function out(): WheelLoaderManager {
+    const l = new WheelLoaderManager();
+    l.setScreenSize(800, 600);
+    l.spawn();
+    (l as unknown as { lifeTimer: number }).lifeTimer = 1; // alpha > 0 so it draws
+    l.wheelPhase = 0.7;
+    return l;
+  }
+
+  it('draws without throwing and balances save/restore, facing either way', () => {
+    for (const facing of [1, -1]) {
+      const mock = makeMockCtx();
+      const renderer = new Renderer(mock.ctx);
+      const l = out();
+      l.facing = facing;
+      renderer.drawWheelLoader(l);
+      expect(mock.depth()).toBe(0);   // every save() matched by a restore()
+      expect(mock.minDepth()).toBe(0); // never restored below the starting level
+    }
+  });
+
+  it('skips drawing entirely while invisible (alpha 0)', () => {
+    const mock = makeMockCtx();
+    const renderer = new Renderer(mock.ctx);
+    const l = new WheelLoaderManager();
+    l.setScreenSize(800, 600); // idle → alpha 0
+    renderer.drawWheelLoader(l);
+    expect(mock.maxDepth()).toBe(0);
+  });
+
+  it('draws the spawn button (available and during cooldown) without leaking saves', () => {
+    for (const cooling of [false, true]) {
+      const mock = makeMockCtx();
+      const renderer = new Renderer(mock.ctx);
+      const l = new WheelLoaderManager();
+      l.setScreenSize(800, 600);
+      if (cooling) {
+        l.spawn();
+        l.update(1000, [], []); // -> cooldown
+      }
+      renderer.drawWheelLoaderButton(l);
       expect(mock.depth()).toBe(0);
       expect(mock.minDepth()).toBe(0);
     }

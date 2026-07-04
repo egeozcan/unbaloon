@@ -828,4 +828,59 @@ export class AudioManager {
     noise.start(now + 0.7);
     noise.stop(now + 1.2);
   }
+
+  // Wheel loader: a low diesel rumble revving up, a couple of hydraulic whirrs as the
+  // bucket lifts, and a soft "clunk" as it locks into carry position. No siren — it is
+  // a workhorse support vehicle, not an emergency one.
+  playWheelLoaderSpawn(): void {
+    const ctx = this.ensureContext();
+    const now = ctx.currentTime;
+
+    // Diesel engine rumble revving up then settling.
+    const engine = ctx.createOscillator();
+    const engineGain = ctx.createGain();
+    const lowpass = ctx.createBiquadFilter();
+    engine.type = 'sawtooth';
+    engine.frequency.setValueAtTime(52, now);
+    engine.frequency.linearRampToValueAtTime(96, now + 0.4);
+    engine.frequency.linearRampToValueAtTime(70, now + 0.95);
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 620;
+    engineGain.gain.setValueAtTime(0, now);
+    engineGain.gain.linearRampToValueAtTime(0.12, now + 0.12);
+    engineGain.gain.linearRampToValueAtTime(0, now + 1.0);
+    engine.connect(lowpass);
+    lowpass.connect(engineGain);
+    engineGain.connect(ctx.destination);
+    engine.start(now);
+    engine.stop(now + 1.0);
+
+    // Hydraulic whirr as the lift arms raise the bucket — a filtered tone sweeping up.
+    const hyd = ctx.createOscillator();
+    const hydGain = ctx.createGain();
+    hyd.type = 'triangle';
+    hyd.frequency.setValueAtTime(320, now + 0.25);
+    hyd.frequency.linearRampToValueAtTime(560, now + 0.7);
+    hydGain.gain.setValueAtTime(0.0001, now + 0.25);
+    hydGain.gain.linearRampToValueAtTime(0.05, now + 0.4);
+    hydGain.gain.exponentialRampToValueAtTime(0.001, now + 0.78);
+    hyd.connect(hydGain);
+    hydGain.connect(ctx.destination);
+    hyd.start(now + 0.25);
+    hyd.stop(now + 0.8);
+
+    // A soft metallic "clunk" as the bucket locks into its raised carry position.
+    const clunk = ctx.createOscillator();
+    const clunkGain = ctx.createGain();
+    clunk.type = 'square';
+    clunk.frequency.setValueAtTime(180, now + 0.75);
+    clunk.frequency.exponentialRampToValueAtTime(90, now + 0.86);
+    clunkGain.gain.setValueAtTime(0.0001, now + 0.75);
+    clunkGain.gain.linearRampToValueAtTime(0.07, now + 0.78);
+    clunkGain.gain.exponentialRampToValueAtTime(0.001, now + 0.92);
+    clunk.connect(clunkGain);
+    clunkGain.connect(ctx.destination);
+    clunk.start(now + 0.75);
+    clunk.stop(now + 0.94);
+  }
 }

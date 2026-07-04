@@ -10,6 +10,7 @@ import { TractorManager } from './tractor';
 import { RainCloudManager } from './raincloud';
 import { ExcavatorManager } from './excavator';
 import { FiretruckManager } from './firetruck';
+import { WheelLoaderManager } from './wheelloader';
 import {
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
@@ -52,6 +53,7 @@ export class Game {
   private rainCloud: RainCloudManager;
   private excavator: ExcavatorManager;
   private firetruck: FiretruckManager;
+  private wheelLoader: WheelLoaderManager;
   private previousPhase: Phase = 1;
 
   // Surprise counter
@@ -81,6 +83,7 @@ export class Game {
     this.rainCloud = new RainCloudManager();
     this.excavator = new ExcavatorManager();
     this.firetruck = new FiretruckManager();
+    this.wheelLoader = new WheelLoaderManager();
   }
 
   start(): void {
@@ -201,6 +204,15 @@ export class Game {
     // the spray (it claims nothing — wet balloons recover once they drift clear).
     this.firetruck.update(dt, this.balloons);
 
+    // Update wheel loader: a support vehicle that pops nothing — it trundles along the
+    // floor and shoves low balloons horizontally under the nearest active popping
+    // vehicle so those vehicles can finish them. Feed it the positions of whichever
+    // poppers are currently out; with none out it simply idles.
+    const poppers = [this.helicopter, this.plane, this.bulldozer, this.tractor, this.excavator]
+      .filter(v => v.isActive)
+      .map(v => ({ x: v.x, y: v.y }));
+    this.wheelLoader.update(dt, freeBalloons, poppers);
+
     // Update surprise events
     this.surprise.update(dt);
 
@@ -248,6 +260,10 @@ export class Game {
     // reads against the balloons it is wetting (alpha 0 when not out).
     this.renderer.drawFiretruck(this.firetruck);
 
+    // Wheel loader is a ground vehicle as well — drawn over the balloons so its bucket
+    // reads against the balloon it is shoving (alpha 0 when not out).
+    this.renderer.drawWheelLoader(this.wheelLoader);
+
     // Darts and helicopter ride above the balloons
     this.renderer.drawDarts(this.helicopter.darts);
     this.renderer.drawHelicopter(this.helicopter);
@@ -281,6 +297,7 @@ export class Game {
       this.renderer.drawFiretruckButton(this.firetruck);
       // Effect buttons live on the opposite (right) edge.
       this.renderer.drawRainCloudButton(this.rainCloud);
+      this.renderer.drawWheelLoaderButton(this.wheelLoader);
     }
 
     // Finale fade overlay
@@ -416,6 +433,10 @@ export class Game {
         this.audio.playRainSpawn();
         return;
       }
+      if (this.wheelLoader.trySpawn(x, y)) {
+        this.audio.playWheelLoaderSpawn();
+        return;
+      }
       if (this.helicopter.tryGrab(id, x, y)) {
         return;
       }
@@ -544,6 +565,7 @@ export class Game {
     this.rainCloud.clear();
     this.excavator.clear();
     this.firetruck.clear();
+    this.wheelLoader.clear();
   }
 
   private updateFinale(dt: number): void {
@@ -627,6 +649,8 @@ export class Game {
     this.excavator.setScreenSize(this.width, this.height);
     this.firetruck.reset();
     this.firetruck.setScreenSize(this.width, this.height);
+    this.wheelLoader.reset();
+    this.wheelLoader.setScreenSize(this.width, this.height);
     this.focusX = this.width / 2;
     this.focusY = this.height / 2;
     this.session.reset();
@@ -722,5 +746,6 @@ export class Game {
     this.rainCloud.setScreenSize(this.width, this.height);
     this.excavator.setScreenSize(this.width, this.height);
     this.firetruck.setScreenSize(this.width, this.height);
+    this.wheelLoader.setScreenSize(this.width, this.height);
   }
 }
