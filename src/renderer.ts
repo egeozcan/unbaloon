@@ -2554,11 +2554,14 @@ export class Renderer {
 
   // The loader body around the origin, facing right: two big tyres, a rear engine hood,
   // an operator cab, and a front frame carrying the lift arms up to a raised bucket.
+  // The loader body around the origin, facing right: two big tyres, a rear engine hood,
+  // an operator cab, and a front frame carrying the lift arms up to a raised bucket.
   private drawWheelLoaderShape(s: number, wheelPhase: number): void {
     const ctx = this.ctx;
     const blue = WHEELLOADER_BODY_COLOR;
     const blueDark = WHEELLOADER_BODY_DARK;
     const blueLight = this.shadeColor(blue, 0.22);
+    const detailColor = WHEELLOADER_DETAIL_COLOR;
 
     const rwX = -0.30 * s, fwX = 0.30 * s, wY = 0.26 * s, wR = 0.20 * s;
 
@@ -2567,8 +2570,13 @@ export class Renderer {
     this.drawWheelLoaderWheel(fwX, wY, wR, wheelPhase);
 
     // Dark chassis bridging the axles.
-    ctx.fillStyle = WHEELLOADER_DETAIL_COLOR;
+    ctx.fillStyle = detailColor;
     this.roundedRectPath(-0.33 * s, 0.20 * s, 0.66 * s, 0.11 * s, 0.03 * s);
+    ctx.fill();
+
+    // Rear counterweight block
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(-0.53 * s, 0.05 * s, 0.12 * s, 0.22 * s, 0.04 * s);
     ctx.fill();
 
     // Rear engine hood, with a top sheen and a lower shade.
@@ -2582,10 +2590,32 @@ export class Renderer {
     this.roundedRectPath(-0.48 * s, 0.18 * s, 0.42 * s, 0.06 * s, 0.025 * s);
     ctx.fill();
 
-    // Exhaust stack on the hood.
-    ctx.fillStyle = WHEELLOADER_DETAIL_COLOR;
-    this.roundedRectPath(-0.40 * s, -0.22 * s, 0.05 * s, 0.13 * s, 0.02 * s);
+    // High-visibility safety stripe along the engine hood
+    ctx.fillStyle = '#FFC043'; // amber/yellow
+    this.roundedRectPath(-0.48 * s, 0.13 * s, 0.40 * s, 0.03 * s, 0.01 * s);
     ctx.fill();
+
+    // Engine cooling louvers/vents
+    ctx.strokeStyle = detailColor;
+    ctx.lineWidth = 0.012 * s;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let k = 0; k < 5; k++) {
+      const vx = -0.42 * s + k * 0.035 * s;
+      ctx.moveTo(vx, 0.0 * s);
+      ctx.lineTo(vx, 0.09 * s);
+    }
+    ctx.stroke();
+
+    // Exhaust stack on the hood, taller and with a flapped lid.
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(-0.40 * s, -0.25 * s, 0.05 * s, 0.16 * s, 0.02 * s);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-0.41 * s, -0.25 * s);
+    ctx.lineTo(-0.33 * s, -0.28 * s);
+    ctx.lineWidth = 0.01 * s;
+    ctx.stroke();
 
     // Articulation joint (the waist the front frame pivots on).
     ctx.fillStyle = blueDark;
@@ -2596,6 +2626,12 @@ export class Renderer {
     ctx.fillStyle = WHEELLOADER_CAB_COLOR;
     this.roundedRectPath(-0.11 * s, -0.25 * s, 0.25 * s, 0.25 * s, 0.05 * s);
     ctx.fill();
+
+    // Cab roof rim for added structure
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(-0.12 * s, -0.28 * s, 0.27 * s, 0.04 * s, 0.015 * s);
+    ctx.fill();
+
     ctx.fillStyle = WHEELLOADER_WINDOW_COLOR;
     this.roundedRectPath(-0.06 * s, -0.21 * s, 0.16 * s, 0.15 * s, 0.03 * s);
     ctx.fill();
@@ -2608,14 +2644,29 @@ export class Renderer {
     ctx.closePath();
     ctx.fill();
 
+    // Access ladder on the side
+    ctx.strokeStyle = WHEELLOADER_WHEEL_HUB; // silver
+    ctx.lineWidth = 0.015 * s;
+    ctx.beginPath();
+    ctx.moveTo(-0.12 * s, -0.0 * s);
+    ctx.lineTo(-0.12 * s, 0.21 * s);
+    ctx.moveTo(-0.06 * s, -0.0 * s);
+    ctx.lineTo(-0.06 * s, 0.21 * s);
+    for (let r = 0; r < 4; r++) {
+      const ry = 0.03 * s + r * 0.05 * s;
+      ctx.moveTo(-0.12 * s, ry);
+      ctx.lineTo(-0.06 * s, ry);
+    }
+    ctx.stroke();
+
     // Amber roof beacon.
     ctx.fillStyle = WHEELLOADER_BEACON_COLOR;
     ctx.beginPath();
-    ctx.arc(0.01 * s, -0.25 * s, 0.04 * s, Math.PI, Math.PI * 2);
+    ctx.arc(0.01 * s, -0.28 * s, 0.04 * s, Math.PI, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.beginPath();
-    ctx.arc(-0.005 * s, -0.26 * s, 0.013 * s, 0, Math.PI * 2);
+    ctx.arc(-0.005 * s, -0.29 * s, 0.013 * s, 0, Math.PI * 2);
     ctx.fill();
 
     // Front frame block over the front wheel (carries the lift arms).
@@ -2625,7 +2676,18 @@ export class Renderer {
     ctx.fillStyle = blueDark;
     this.roundedRectPath(0.03 * s, 0.16 * s, 0.30 * s, 0.06 * s, 0.02 * s);
     ctx.fill();
-    // Headlight with a glint.
+
+    // Front mudguard over the wheel
+    ctx.strokeStyle = detailColor;
+    ctx.lineWidth = 0.025 * s;
+    ctx.beginPath();
+    ctx.arc(0.30 * s, 0.24 * s, 0.24 * s, Math.PI, 0);
+    ctx.stroke();
+
+    // Headlight with a glint and an angled mounting bracket.
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(0.28 * s, 0.0 * s, 0.05 * s, 0.05 * s, 0.01 * s);
+    ctx.fill();
     ctx.fillStyle = WHEELLOADER_WHEEL_HUB;
     ctx.beginPath();
     ctx.arc(0.32 * s, 0.02 * s, 0.03 * s, 0, Math.PI * 2);
@@ -2634,11 +2696,38 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(0.312 * s, 0.01 * s, 0.011 * s, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Headlight beam (translucent cone)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.beginPath();
+    ctx.moveTo(0.35 * s, 0.02 * s);
+    ctx.lineTo(0.70 * s, -0.15 * s);
+    ctx.lineTo(0.70 * s, 0.19 * s);
+    ctx.closePath();
+    ctx.fill();
 
     // Lift arms rising forward from the front frame to the raised bucket.
     const bx = WHEELLOADER_BUCKET_DX * s;
     const by = -WHEELLOADER_BUCKET_UP * s;
     const px = 0.07 * s, py = -0.05 * s; // arm pivot on the frame
+
+    // Hydraulic cylinder for the boom
+    ctx.strokeStyle = detailColor;
+    ctx.lineWidth = 0.05 * s;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0.12 * s, 0.15 * s); // pivot on front frame
+    ctx.lineTo(0.26 * s, 0.02 * s); // cylinder body
+    ctx.stroke();
+    // Chrome piston rod
+    ctx.strokeStyle = WHEELLOADER_WHEEL_HUB;
+    ctx.lineWidth = 0.02 * s;
+    ctx.beginPath();
+    ctx.moveTo(0.26 * s, 0.02 * s);
+    ctx.lineTo(bx - 0.20 * s, by + 0.15 * s); // attached to boom
+    ctx.stroke();
+
+    // Main lift arm
     ctx.strokeStyle = WHEELLOADER_ARM_COLOR;
     ctx.lineWidth = 0.10 * s;
     ctx.lineCap = 'round';
@@ -2652,6 +2741,23 @@ export class Renderer {
     ctx.moveTo(px, py + 0.035 * s);
     ctx.lineTo(bx - 0.11 * s, by + 0.105 * s);
     ctx.stroke();
+    
+    // Bucket tilt cylinder (attaches to the middle of the arm and top of bucket)
+    ctx.strokeStyle = detailColor;
+    ctx.lineWidth = 0.035 * s;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0.32 * s, -0.28 * s);
+    ctx.lineTo(0.42 * s, -0.38 * s);
+    ctx.stroke();
+    // Tilt piston rod
+    ctx.strokeStyle = WHEELLOADER_WHEEL_HUB;
+    ctx.lineWidth = 0.015 * s;
+    ctx.beginPath();
+    ctx.moveTo(0.42 * s, -0.38 * s);
+    ctx.lineTo(bx - 0.14 * s, by - 0.10 * s); // attach to top of bucket bracket
+    ctx.stroke();
+
     // Pivot bolt.
     ctx.fillStyle = WHEELLOADER_ARM_DARK;
     ctx.beginPath();
@@ -2669,33 +2775,68 @@ export class Renderer {
     ctx.save();
     ctx.translate(bx, by);
 
-    // Scoop body.
-    ctx.fillStyle = WHEELLOADER_BUCKET_COLOR;
+    // Dark reinforcement bracket (attaches to arm and tilt cylinder)
+    ctx.fillStyle = WHEELLOADER_BUCKET_DARK;
     ctx.beginPath();
-    ctx.moveTo(-0.13 * s, -0.11 * s); // back-top
-    ctx.lineTo(-0.13 * s, 0.07 * s);  // back-bottom
-    ctx.quadraticCurveTo(-0.11 * s, 0.17 * s, 0.05 * s, 0.17 * s); // curved floor
-    ctx.lineTo(0.18 * s, 0.10 * s);   // front lip out
-    ctx.lineTo(0.18 * s, -0.03 * s);  // front-top
+    ctx.moveTo(-0.18 * s, -0.15 * s);
+    ctx.lineTo(-0.18 * s, 0.05 * s);
+    ctx.lineTo(-0.08 * s, 0.12 * s);
+    ctx.lineTo(-0.06 * s, -0.12 * s);
     ctx.closePath();
     ctx.fill();
 
-    // Back wall shade.
-    ctx.fillStyle = WHEELLOADER_BUCKET_DARK;
-    this.roundedRectPath(-0.14 * s, -0.12 * s, 0.05 * s, 0.30 * s, 0.02 * s);
+    // Main side plate
+    ctx.fillStyle = WHEELLOADER_BUCKET_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-0.12 * s, -0.18 * s); // top back
+    ctx.lineTo(-0.15 * s, 0.10 * s);  // bottom back
+    ctx.quadraticCurveTo(-0.05 * s, 0.18 * s, 0.05 * s, 0.18 * s); // curved heel
+    ctx.lineTo(0.24 * s, 0.18 * s);   // bottom front lip
+    ctx.lineTo(0.24 * s, 0.06 * s);   // straight up a bit
+    ctx.lineTo(-0.05 * s, -0.18 * s); // angled back to top
+    ctx.closePath();
     ctx.fill();
 
-    // Toothed cutting edge along the front lip.
+    // Side plate inset (depth detail)
     ctx.fillStyle = WHEELLOADER_BUCKET_DARK;
+    ctx.beginPath();
+    ctx.moveTo(-0.08 * s, -0.12 * s);
+    ctx.lineTo(-0.11 * s, 0.08 * s);
+    ctx.quadraticCurveTo(-0.03 * s, 0.14 * s, 0.05 * s, 0.14 * s);
+    ctx.lineTo(0.18 * s, 0.14 * s);
+    ctx.lineTo(0.18 * s, 0.08 * s);
+    ctx.lineTo(-0.02 * s, -0.12 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Structural ribs on the side
+    ctx.fillStyle = WHEELLOADER_DETAIL_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-0.13 * s, -0.10 * s);
+    ctx.lineTo(-0.15 * s, 0.05 * s);
+    ctx.lineTo(-0.12 * s, 0.07 * s);
+    ctx.lineTo(-0.10 * s, -0.08 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Teeth on the front lip (pointing right)
+    ctx.fillStyle = WHEELLOADER_DETAIL_COLOR;
     for (let k = 0; k < 3; k++) {
-      const tx = 0.06 * s + k * 0.05 * s;
+      const tx = 0.22 * s + k * 0.02 * s;
+      const ty = 0.18 * s - k * 0.015 * s;
       ctx.beginPath();
-      ctx.moveTo(tx, 0.15 * s);
-      ctx.lineTo(tx + 0.03 * s, 0.15 * s);
-      ctx.lineTo(tx + 0.015 * s, 0.21 * s);
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx + 0.08 * s, ty); // tip
+      ctx.lineTo(tx + 0.03 * s, ty - 0.05 * s); // top edge of tooth
       ctx.closePath();
       ctx.fill();
     }
+    
+    // Bottom wear plate
+    ctx.fillStyle = WHEELLOADER_DETAIL_COLOR;
+    this.roundedRectPath(0.0 * s, 0.18 * s, 0.24 * s, 0.025 * s, 0.01 * s);
+    ctx.fill();
+
     ctx.restore();
   }
 
