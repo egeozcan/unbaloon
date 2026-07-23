@@ -95,6 +95,7 @@ const pwa = new PwaController({
     window.matchMedia.bind(window),
     iosNavigator.standalone === true,
   ),
+  reloadPage: () => window.location.reload(),
 });
 pwa.initialize();
 pwa.setSafePromptSurface(true);

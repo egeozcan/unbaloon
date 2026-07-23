@@ -6,6 +6,7 @@ import {
   PwaView,
   RegisterServiceWorker,
   ServiceWorkerCallbacks,
+  UPDATE_ACTIVATION_TIMEOUT_MS,
   isInstalledApp,
   isIosSafari,
 } from '../pwa';
@@ -43,6 +44,7 @@ function setup(overrides: Partial<PwaControllerOptions> = {}) {
     return updateServiceWorker;
   };
   const logger = { warn: vi.fn() };
+  const reloadPage = vi.fn();
   const controller = new PwaController({
     view,
     events,
@@ -50,6 +52,7 @@ function setup(overrides: Partial<PwaControllerOptions> = {}) {
     isIosSafari: false,
     isInstalled: false,
     logger,
+    reloadPage,
     ...overrides,
   });
 
@@ -61,6 +64,7 @@ function setup(overrides: Partial<PwaControllerOptions> = {}) {
     view,
     updateServiceWorker,
     logger,
+    reloadPage,
     getCallbacks: () => callbacks,
   };
 }
@@ -212,43 +216,137 @@ describe('PwaController', () => {
     expect(view.setUpdateVisible).toHaveBeenLastCalledWith(true);
 
     await controller.applyUpdate();
-    expect(updateServiceWorker).toHaveBeenCalledWith(true);
+    expect(updateServiceWorker).toHaveBeenCalledWith(false);
     expect(view.setUpdateApplying).toHaveBeenLastCalledWith(true);
     expect(view.setUpdateVisible).toHaveBeenLastCalledWith(true);
+
+    getCallbacks()?.onNeedReload();
   });
 
-  it('enters update-applying state before deferred activation resolves and restores it on failure', async () => {
-    const activationError = new Error('activation failed');
-    let rejectActivation: (error: Error) => void = () => {};
-    const updateServiceWorker = vi.fn((_reloadPage?: boolean) => new Promise<void>((_resolve, reject) => {
-      rejectActivation = reject;
-    }));
-    let callbacks: ServiceWorkerCallbacks | undefined;
-    const registerServiceWorker: RegisterServiceWorker = (options) => {
-      callbacks = options;
-      return updateServiceWorker;
-    };
-    const logger = { warn: vi.fn() };
-    const { controller, view } = setup({ registerServiceWorker, logger });
+  it('restores controls and retains the update action when controlling times out', async () => {
+    vi.useFakeTimers();
+    try {
+      const {
+        controller,
+        view,
+        logger,
+        reloadPage,
+        getCallbacks,
+      } = setup();
+      controller.setSafePromptSurface(true);
+      getCallbacks()?.onNeedRefresh();
 
-    controller.setSafePromptSurface(true);
-    callbacks?.onNeedRefresh();
+      await controller.applyUpdate();
 
-    const applying = controller.applyUpdate();
+      expect(view.setUpdateApplying).toHaveBeenLastCalledWith(true);
+      expect(reloadPage).not.toHaveBeenCalled();
 
-    expect(updateServiceWorker).toHaveBeenCalledWith(true);
-    expect(view.setUpdateApplying).toHaveBeenLastCalledWith(true);
-    expect(view.setUpdateVisible).toHaveBeenLastCalledWith(true);
+      await vi.advanceTimersByTimeAsync(UPDATE_ACTIVATION_TIMEOUT_MS);
 
-    rejectActivation(activationError);
-    await applying;
+      expect(view.setUpdateApplying).toHaveBeenLastCalledWith(false);
+      expect(view.setUpdateVisible).toHaveBeenLastCalledWith(true);
+      expect(logger.warn).toHaveBeenCalledWith(
+        `PWA update activation timed out after ${UPDATE_ACTIVATION_TIMEOUT_MS} ms`,
+        expect.any(Error),
+      );
+      expect(reloadPage).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
-    expect(logger.warn).toHaveBeenCalledWith(
-      'PWA update activation failed',
-      activationError,
-    );
-    expect(view.setUpdateApplying).toHaveBeenLastCalledWith(false);
-    expect(view.setUpdateVisible).toHaveBeenLastCalledWith(true);
+  it('defers a late controlling reload during gameplay until the next safe surface', async () => {
+    vi.useFakeTimers();
+    try {
+      const { controller, reloadPage, getCallbacks } = setup();
+      controller.setSafePromptSurface(true);
+      getCallbacks()?.onNeedRefresh();
+      await controller.applyUpdate();
+      await vi.advanceTimersByTimeAsync(UPDATE_ACTIVATION_TIMEOUT_MS);
+
+      controller.setSafePromptSurface(false);
+      getCallbacks()?.onNeedReload();
+
+      expect(reloadPage).not.toHaveBeenCalled();
+
+      controller.setSafePromptSurface(true);
+      getCallbacks()?.onNeedReload();
+      controller.setSafePromptSurface(true);
+
+      expect(reloadPage).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reloads once when controlling arrives on a safe surface and cancels the timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const {
+        controller,
+        view,
+        logger,
+        reloadPage,
+        getCallbacks,
+      } = setup();
+      controller.setSafePromptSurface(true);
+      getCallbacks()?.onNeedRefresh();
+      await controller.applyUpdate();
+
+      getCallbacks()?.onNeedReload();
+      getCallbacks()?.onNeedReload();
+      await vi.advanceTimersByTimeAsync(UPDATE_ACTIVATION_TIMEOUT_MS);
+
+      expect(reloadPage).toHaveBeenCalledOnce();
+      expect(view.setUpdateApplying).toHaveBeenLastCalledWith(false);
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('timed out'),
+        expect.anything(),
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('locks synchronously, then cancels the timeout and restores controls on adapter rejection', async () => {
+    vi.useFakeTimers();
+    try {
+      const activationError = new Error('activation failed');
+      let rejectActivation: (error: Error) => void = () => {};
+      const updateServiceWorker = vi.fn((_reloadPage?: boolean) => new Promise<void>((_resolve, reject) => {
+        rejectActivation = reject;
+      }));
+      let callbacks: ServiceWorkerCallbacks | undefined;
+      const registerServiceWorker: RegisterServiceWorker = (options) => {
+        callbacks = options;
+        return updateServiceWorker;
+      };
+      const logger = { warn: vi.fn() };
+      const { controller, view } = setup({ registerServiceWorker, logger });
+
+      controller.setSafePromptSurface(true);
+      callbacks?.onNeedRefresh();
+
+      const applying = controller.applyUpdate();
+
+      expect(updateServiceWorker).toHaveBeenCalledWith(false);
+      expect(view.setUpdateApplying).toHaveBeenLastCalledWith(true);
+      expect(vi.getTimerCount()).toBe(1);
+
+      rejectActivation(activationError);
+      await applying;
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        'PWA update activation failed',
+        activationError,
+      );
+      expect(view.setUpdateApplying).toHaveBeenLastCalledWith(false);
+      expect(view.setUpdateVisible).toHaveBeenLastCalledWith(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('hides iOS guidance when gameplay starts', async () => {
