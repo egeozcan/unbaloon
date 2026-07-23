@@ -33,6 +33,7 @@ function setup(overrides: Partial<PwaControllerOptions> = {}) {
   const view: PwaView = {
     setInstallVisible: vi.fn(),
     setUpdateVisible: vi.fn(),
+    setUpdateApplying: vi.fn(),
     setIosInstructionsVisible: vi.fn(),
   };
   const updateServiceWorker = vi.fn(async (_reloadPage?: boolean) => {});
@@ -78,7 +79,7 @@ describe('PWA platform detection', () => {
     )).toBe(true);
   });
 
-  it('excludes non-iOS devices and iOS third-party browsers', () => {
+  it('excludes non-iOS devices, iOS third-party browsers, and in-app browsers', () => {
     expect(isIosSafari(
       'Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/130 Safari/537.36',
       'Linux armv8l',
@@ -86,6 +87,31 @@ describe('PWA platform detection', () => {
     )).toBe(false);
     expect(isIosSafari(
       'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 CriOS/130 Mobile/15E148 Safari/604.1',
+      'iPhone',
+      5,
+    )).toBe(false);
+    expect(isIosSafari(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 FxiOS/130 Mobile/15E148 Safari/605.1.15',
+      'iPhone',
+      5,
+    )).toBe(false);
+    expect(isIosSafari(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 EdgiOS/130 Mobile/15E148 Safari/605.1.15',
+      'iPhone',
+      5,
+    )).toBe(false);
+    expect(isIosSafari(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 OPiOS/5.0 Mobile/15E148 Safari/605.1.15',
+      'iPhone',
+      5,
+    )).toBe(false);
+    expect(isIosSafari(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/520.0.0.0.1;FBBV/123456]',
+      'iPhone',
+      5,
+    )).toBe(false);
+    expect(isIosSafari(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 345.0.0.0.1',
       'iPhone',
       5,
     )).toBe(false);
@@ -187,7 +213,42 @@ describe('PwaController', () => {
 
     await controller.applyUpdate();
     expect(updateServiceWorker).toHaveBeenCalledWith(true);
-    expect(view.setUpdateVisible).toHaveBeenLastCalledWith(false);
+    expect(view.setUpdateApplying).toHaveBeenLastCalledWith(true);
+    expect(view.setUpdateVisible).toHaveBeenLastCalledWith(true);
+  });
+
+  it('enters update-applying state before deferred activation resolves and restores it on failure', async () => {
+    const activationError = new Error('activation failed');
+    let rejectActivation: (error: Error) => void = () => {};
+    const updateServiceWorker = vi.fn((_reloadPage?: boolean) => new Promise<void>((_resolve, reject) => {
+      rejectActivation = reject;
+    }));
+    let callbacks: ServiceWorkerCallbacks | undefined;
+    const registerServiceWorker: RegisterServiceWorker = (options) => {
+      callbacks = options;
+      return updateServiceWorker;
+    };
+    const logger = { warn: vi.fn() };
+    const { controller, view } = setup({ registerServiceWorker, logger });
+
+    controller.setSafePromptSurface(true);
+    callbacks?.onNeedRefresh();
+
+    const applying = controller.applyUpdate();
+
+    expect(updateServiceWorker).toHaveBeenCalledWith(true);
+    expect(view.setUpdateApplying).toHaveBeenLastCalledWith(true);
+    expect(view.setUpdateVisible).toHaveBeenLastCalledWith(true);
+
+    rejectActivation(activationError);
+    await applying;
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      'PWA update activation failed',
+      activationError,
+    );
+    expect(view.setUpdateApplying).toHaveBeenLastCalledWith(false);
+    expect(view.setUpdateVisible).toHaveBeenLastCalledWith(true);
   });
 
   it('hides iOS guidance when gameplay starts', async () => {

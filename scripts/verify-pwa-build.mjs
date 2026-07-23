@@ -62,6 +62,13 @@ const hashedJsBundle = html.match(/\/unbaloon\/(assets\/index-[^"']+\.js)/)?.[1]
 assert.ok(hashedJsBundle, 'index.html must reference a hashed JS bundle');
 
 const serviceWorker = await readFile('dist/sw.js', 'utf8');
+const workboxRuntimeImport = serviceWorker.match(/define\(\[\s*["'](\.\/workbox-[^"']+)["']\s*\]/)?.[1]
+  ?? serviceWorker.match(/importScripts\(\s*["'](\.\/workbox-[^"']+\.js)["']\s*\)/)?.[1];
+assert.ok(workboxRuntimeImport, 'service worker must import a Workbox runtime support file');
+const workboxRuntimePath = workboxRuntimeImport.endsWith('.js')
+  ? `dist/${workboxRuntimeImport.slice(2)}`
+  : `dist/${workboxRuntimeImport.slice(2)}.js`;
+await access(workboxRuntimePath);
 assert.match(serviceWorker, /NavigationRoute\(.*createHandlerBoundToURL\("index\.html"\)/, 'service worker must provide an index.html navigation fallback');
 for (const asset of [
   'index.html',

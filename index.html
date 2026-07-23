@@ -92,6 +92,12 @@
     .fullscreen-toggle:active {
       background: rgba(255, 255, 255, 0.9);
     }
+    .start-btn:disabled,
+    .fullscreen-toggle:disabled {
+      cursor: not-allowed;
+      opacity: 0.75;
+      transform: none;
+    }
     .start-secondary-actions {
       display: flex;
       flex-wrap: wrap;
@@ -151,8 +157,8 @@
       <button class="fullscreen-toggle" id="fullscreen-btn">Fullscreen</button>
       <button class="fullscreen-toggle pwa-control hidden" id="install-btn">Install app</button>
     </div>
-    <div class="install-panel hidden" id="ios-install-panel" role="dialog" aria-live="polite">
-      <strong>Install Unbaloon</strong><br />
+    <div class="install-panel hidden" id="ios-install-panel" role="dialog" aria-labelledby="ios-install-title" aria-live="polite">
+      <strong id="ios-install-title">Install Unbaloon</strong><br />
       Tap the Share button, then choose <strong>Add to Home Screen</strong>.
       <br />
       <button class="fullscreen-toggle" id="dismiss-ios-install-btn">Got it</button>
@@ -161,10 +167,10 @@
   <div id="play-again-screen" class="hidden">
     <button class="start-btn" id="play-again-btn">Play again!</button>
   </div>
-  <button class="fullscreen-toggle update-prompt hidden" id="update-btn">
+  <button class="fullscreen-toggle update-prompt hidden" id="update-btn" aria-live="polite" aria-atomic="true">
     Update available
   </button>
-  <canvas id="game"></canvas>
+  <canvas id="game" tabindex="-1"></canvas>
   <script type="module" src="/src/index.ts"></script>
 </body>
 </html>

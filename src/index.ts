@@ -9,14 +9,31 @@ import {
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const startScreen = document.getElementById('start-screen')!;
-const startBtn = document.getElementById('start-btn')!;
-const fullscreenBtn = document.getElementById('fullscreen-btn')!;
-const playAgainBtn = document.getElementById('play-again-btn')!;
+const startBtn = document.getElementById('start-btn') as HTMLButtonElement;
+const fullscreenBtn = document.getElementById('fullscreen-btn') as HTMLButtonElement;
+const playAgainBtn = document.getElementById('play-again-btn') as HTMLButtonElement;
 const playAgainScreen = document.getElementById('play-again-screen')!;
-const installBtn = document.getElementById('install-btn')!;
+const installBtn = document.getElementById('install-btn') as HTMLButtonElement;
 const iosInstallPanel = document.getElementById('ios-install-panel')!;
-const dismissIosInstallBtn = document.getElementById('dismiss-ios-install-btn')!;
-const updateBtn = document.getElementById('update-btn')!;
+const dismissIosInstallBtn = document.getElementById('dismiss-ios-install-btn') as HTMLButtonElement;
+const updateBtn = document.getElementById('update-btn') as HTMLButtonElement;
+let updateApplying = false;
+let iosInstallReturnFocus: HTMLElement | null = null;
+
+function focusGameCanvas(): void {
+  canvas.focus({ preventScroll: true });
+}
+
+function isHiddenFromUser(element: HTMLElement): boolean {
+  let current: HTMLElement | null = element;
+  while (current !== null) {
+    if (current.classList.contains('hidden')) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
 
 const view: PwaView = {
   setInstallVisible(visible) {
@@ -25,8 +42,42 @@ const view: PwaView = {
   setUpdateVisible(visible) {
     updateBtn.classList.toggle('hidden', !visible);
   },
+  setUpdateApplying(applying) {
+    updateApplying = applying;
+    startBtn.disabled = applying;
+    playAgainBtn.disabled = applying;
+    updateBtn.disabled = applying;
+    updateBtn.textContent = applying ? 'Updating…' : 'Update available';
+  },
   setIosInstructionsVisible(visible) {
+    const wasVisible = !iosInstallPanel.classList.contains('hidden');
     iosInstallPanel.classList.toggle('hidden', !visible);
+
+    if (visible && !wasVisible) {
+      iosInstallReturnFocus = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+      dismissIosInstallBtn.focus({ preventScroll: true });
+      return;
+    }
+
+    if (!visible && wasVisible) {
+      const returnFocus = iosInstallReturnFocus;
+      iosInstallReturnFocus = null;
+      if (startScreen.classList.contains('hidden')) {
+        if (document.activeElement === dismissIosInstallBtn) {
+          dismissIosInstallBtn.blur();
+        }
+      } else if (
+        returnFocus !== null
+        && document.contains(returnFocus)
+        && !isHiddenFromUser(returnFocus)
+      ) {
+        returnFocus.focus({ preventScroll: true });
+      } else {
+        startBtn.focus({ preventScroll: true });
+      }
+    }
   },
 };
 
@@ -54,9 +105,14 @@ const game = new Game(canvas, () => {
 });
 
 startBtn.addEventListener('click', () => {
+  if (updateApplying) {
+    return;
+  }
+
   startScreen.classList.add('hidden');
   pwa.setSafePromptSurface(false);
   game.start();
+  focusGameCanvas();
 });
 
 fullscreenBtn.addEventListener('click', () => {
@@ -70,9 +126,14 @@ fullscreenBtn.addEventListener('click', () => {
 });
 
 playAgainBtn.addEventListener('click', () => {
+  if (updateApplying) {
+    return;
+  }
+
   playAgainScreen.classList.add('hidden');
   pwa.setSafePromptSurface(false);
   game.reset();
+  focusGameCanvas();
 });
 
 installBtn.addEventListener('click', () => {

@@ -8,6 +8,7 @@ export interface BeforeInstallPromptEvent extends Event {
 export interface PwaView {
   setInstallVisible(visible: boolean): void;
   setUpdateVisible(visible: boolean): void;
+  setUpdateApplying(applying: boolean): void;
   setIosInstructionsVisible(visible: boolean): void;
 }
 
@@ -42,9 +43,10 @@ export function isIosSafari(
 ): boolean {
   const iosDevice = /iPad|iPhone|iPod/.test(userAgent)
     || (platform === 'MacIntel' && maxTouchPoints > 1);
-  const webkit = /WebKit/.test(userAgent);
-  const otherIosBrowser = /CriOS|FxiOS|EdgiOS|OPiOS/.test(userAgent);
-  return iosDevice && webkit && !otherIosBrowser;
+  const webkit = /AppleWebKit/.test(userAgent);
+  const safari = /Version\/[\d.]+(?: .*Mobile\/\S+)? Safari\/[\d.]+/.test(userAgent);
+  const nonSafariContext = /CriOS|FxiOS|EdgiOS|OPiOS|FBAN|FBAV|FBIOS|FB_IAB|Instagram/i.test(userAgent);
+  return iosDevice && webkit && safari && !nonSafariContext;
 }
 
 export function isInstalledApp(
@@ -188,15 +190,16 @@ export class PwaController {
 
   private render(): void {
     const canInstall = this.safePromptSurface
+      && !this.applyingUpdate
       && !this.installed
       && !this.installDismissed
       && (this.installPrompt !== null || this.isIosSafari);
-    const canUpdate = this.safePromptSurface
-      && this.updateReady
-      && !this.applyingUpdate;
+    const updateVisible = this.safePromptSurface
+      && this.updateReady;
 
     this.view.setInstallVisible(canInstall);
-    this.view.setUpdateVisible(canUpdate);
+    this.view.setUpdateApplying(this.applyingUpdate);
+    this.view.setUpdateVisible(updateVisible);
     this.view.setIosInstructionsVisible(
       this.safePromptSurface && this.iosInstructionsVisible,
     );
