@@ -14,6 +14,11 @@ const requiredFiles = [
 
 await Promise.all(requiredFiles.map((path) => access(path)));
 
+const sourceIcon = await readFile('public/icon.svg', 'utf8');
+assert.match(sourceIcon, /<rect\s+width="512"\s+height="512"\s+fill="#87CEEB"\s*\/>/, 'source icon must use an opaque full-square sky-blue background');
+assert.doesNotMatch(sourceIcon, /<rect[^>]*\s(rx|ry)=/, 'source icon background must not have rounded corners');
+assert.doesNotMatch(sourceIcon, /fill="url\(#sky\)"/, 'source icon background must not use a non-uniform sky gradient');
+
 const manifest = JSON.parse(await readFile('dist/manifest.webmanifest', 'utf8'));
 assert.equal(manifest.name, 'Unbaloon');
 assert.equal(manifest.short_name, 'Unbaloon');
@@ -53,10 +58,14 @@ for (const [path, size] of [
 
 const html = await readFile('dist/index.html', 'utf8');
 assert.match(html, /\/unbaloon\/manifest\.webmanifest/);
+const hashedJsBundle = html.match(/\/unbaloon\/(assets\/index-[^"']+\.js)/)?.[1];
+assert.ok(hashedJsBundle, 'index.html must reference a hashed JS bundle');
 
 const serviceWorker = await readFile('dist/sw.js', 'utf8');
+assert.match(serviceWorker, /NavigationRoute\(.*createHandlerBoundToURL\("index\.html"\)/, 'service worker must provide an index.html navigation fallback');
 for (const asset of [
   'index.html',
+  hashedJsBundle,
   'pwa-192x192.png',
   'pwa-512x512.png',
   'maskable-icon-512x512.png',

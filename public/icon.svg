@@ -1,10 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
   <title id="title">Unbaloon colorful balloon</title>
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#87CEEB"/>
-      <stop offset="1" stop-color="#E0F0FF"/>
-    </linearGradient>
     <radialGradient id="balloon" cx="34%" cy="24%" r="76%">
       <stop offset="0" stop-color="#FFD7E0"/>
       <stop offset="0.24" stop-color="#FF7A7A"/>
@@ -12,7 +8,7 @@
       <stop offset="1" stop-color="#7C4DFF"/>
     </radialGradient>
   </defs>
-  <rect width="512" height="512" rx="96" fill="url(#sky)"/>
+  <rect width="512" height="512" fill="#87CEEB"/>
   <circle cx="94" cy="108" r="18" fill="#FFD700" opacity="0.9"/>
   <circle cx="414" cy="126" r="15" fill="#44BB44" opacity="0.9"/>
   <circle cx="90" cy="350" r="14" fill="#4488FF" opacity="0.9"/>
