@@ -25,6 +25,7 @@ import {
 
 export class Game {
   private canvas: HTMLCanvasElement;
+  private readonly onPlayAgain: () => void;
   private ctx: CanvasRenderingContext2D;
   private renderer: Renderer;
   private audio: AudioManager;
@@ -69,8 +70,9 @@ export class Game {
   private finaleTimer: number = 0;
   private finaleSpawnTime: number = 0;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, onPlayAgain: () => void = () => {}) {
     this.canvas = canvas;
+    this.onPlayAgain = onPlayAgain;
     this.ctx = canvas.getContext('2d')!;
     this.renderer = new Renderer(this.ctx);
     this.audio = new AudioManager();
@@ -617,10 +619,7 @@ export class Game {
   private showPlayAgain(): void {
     this.running = false;
     cancelAnimationFrame(this.rafId);
-    const playAgainScreen = document.getElementById('play-again-screen');
-    if (playAgainScreen) {
-      playAgainScreen.classList.remove('hidden');
-    }
+    this.onPlayAgain();
   }
 
   reset(): void {

@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Unbaloon</title>
+  <meta name="description" content="A playful balloon-popping game for young children." />
+  <meta name="theme-color" content="#87CEEB" />
+  <link rel="icon" href="%BASE_URL%favicon.ico" sizes="48x48" />
+  <link rel="icon" href="%BASE_URL%icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon-180x180.png" sizes="180x180" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -87,6 +92,41 @@
     .fullscreen-toggle:active {
       background: rgba(255, 255, 255, 0.9);
     }
+    .start-secondary-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+    .pwa-control.hidden,
+    .install-panel.hidden,
+    .update-prompt.hidden {
+      display: none;
+    }
+    .install-panel {
+      width: min(88vw, 420px);
+      padding: 20px;
+      border: 3px solid rgba(85, 136, 187, 0.35);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.96);
+      color: #315f89;
+      font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive, sans-serif;
+      font-size: clamp(16px, 4vw, 21px);
+      line-height: 1.4;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(49, 95, 137, 0.18);
+    }
+    .install-panel button {
+      margin-top: 14px;
+    }
+    .update-prompt {
+      position: fixed;
+      left: 50%;
+      bottom: max(20px, env(safe-area-inset-bottom));
+      z-index: 20;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
     #play-again-screen {
       position: fixed;
       inset: 0;
@@ -107,11 +147,23 @@
   <div id="start-screen">
     <div class="start-title">Unbaloon</div>
     <button class="start-btn" id="start-btn">Play!</button>
-    <button class="fullscreen-toggle" id="fullscreen-btn">Fullscreen</button>
+    <div class="start-secondary-actions">
+      <button class="fullscreen-toggle" id="fullscreen-btn">Fullscreen</button>
+      <button class="fullscreen-toggle pwa-control hidden" id="install-btn">Install app</button>
+    </div>
+    <div class="install-panel hidden" id="ios-install-panel" role="dialog" aria-live="polite">
+      <strong>Install Unbaloon</strong><br />
+      Tap the Share button, then choose <strong>Add to Home Screen</strong>.
+      <br />
+      <button class="fullscreen-toggle" id="dismiss-ios-install-btn">Got it</button>
+    </div>
   </div>
   <div id="play-again-screen" class="hidden">
     <button class="start-btn" id="play-again-btn">Play again!</button>
   </div>
+  <button class="fullscreen-toggle update-prompt hidden" id="update-btn">
+    Update available
+  </button>
   <canvas id="game"></canvas>
   <script type="module" src="/src/index.ts"></script>
 </body>
