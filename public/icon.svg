@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Unbaloon colorful balloon</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#87CEEB"/>
+      <stop offset="1" stop-color="#E0F0FF"/>
+    </linearGradient>
+    <radialGradient id="balloon" cx="34%" cy="24%" r="76%">
+      <stop offset="0" stop-color="#FFD7E0"/>
+      <stop offset="0.24" stop-color="#FF7A7A"/>
+      <stop offset="0.62" stop-color="#FF3D67"/>
+      <stop offset="1" stop-color="#7C4DFF"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#sky)"/>
+  <circle cx="94" cy="108" r="18" fill="#FFD700" opacity="0.9"/>
+  <circle cx="414" cy="126" r="15" fill="#44BB44" opacity="0.9"/>
+  <circle cx="90" cy="350" r="14" fill="#4488FF" opacity="0.9"/>
+  <path d="M256 84c-91 0-148 67-148 154 0 76 52 139 126 151l-17 28h78l-17-28c74-12 126-75 126-151 0-87-57-154-148-154Z" fill="url(#balloon)" stroke="#FFFFFF" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M194 151c22-31 58-42 86-38-34 13-55 36-67 70-8 21-11 49-8 73-25-25-31-72-11-105Z" fill="#FFFFFF" opacity="0.48"/>
+  <path d="M256 417c-18 19-20 34-5 51 12 14 9 29-3 40" fill="none" stroke="#805A48" stroke-width="9" stroke-linecap="round"/>
+</svg>
