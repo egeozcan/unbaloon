@@ -11,6 +11,10 @@ import { RainCloudManager } from './raincloud';
 import { ExcavatorManager } from './excavator';
 import { FiretruckManager } from './firetruck';
 import { WheelLoaderManager } from './wheelloader';
+import { JeepManager } from './jeep';
+import { BackhoeManager } from './backhoe';
+import { WheeledExcavatorManager } from './wheeledexcavator';
+import { PurplePlaneManager } from './purpleplane';
 import {
   NUMBER_WEIGHTS,
   VIBRATE_DURATION,
@@ -55,6 +59,10 @@ export class Game {
   private excavator: ExcavatorManager;
   private firetruck: FiretruckManager;
   private wheelLoader: WheelLoaderManager;
+  private jeep: JeepManager;
+  private backhoe: BackhoeManager;
+  private wheeledExcavator: WheeledExcavatorManager;
+  private purplePlane: PurplePlaneManager;
   private previousPhase: Phase = 1;
 
   // Surprise counter
@@ -86,6 +94,10 @@ export class Game {
     this.excavator = new ExcavatorManager();
     this.firetruck = new FiretruckManager();
     this.wheelLoader = new WheelLoaderManager();
+    this.jeep = new JeepManager();
+    this.backhoe = new BackhoeManager();
+    this.wheeledExcavator = new WheeledExcavatorManager();
+    this.purplePlane = new PurplePlaneManager();
   }
 
   start(): void {
@@ -206,14 +218,58 @@ export class Game {
     // the spray (it claims nothing — wet balloons recover once they drift clear).
     this.firetruck.update(dt, this.balloons);
 
+    // Jeep: a player-draggable floor toy that also putters on its own. Its bumper
+    // applies one tap per fresh contact, never machine-gunning a stationary balloon.
+    this.jeep.update(dt, this.balloons, (b) => this.jeepBonk(b));
+
+    // Backhoe: scoops the lowest free balloon, relays it through the rear arm, and
+    // gently drops it near the player's latest focus without damaging it.
+    this.backhoe.update(
+      dt,
+      this.focusX,
+      this.focusY,
+      this.balloons,
+      () => this.audio.playBackhoeScoop(),
+      () => this.audio.playBackhoeDrop(),
+    );
+
+    // Wheeled excavator: a separate road-going digger that swings one held balloon
+    // through a bounded arc, bonking a few neighbours before a final bucket pat.
+    this.wheeledExcavator.update(
+      dt,
+      this.balloons,
+      (b) => this.wheeledExcavatorBonk(b),
+      () => this.audio.playExcavatorGrab(),
+    );
+
+    // Purple skywriter: marks ordinary balloons crossed by its ribbon, then taps the
+    // small deduplicated group together when it turns for the next pass.
+    this.purplePlane.update(
+      dt,
+      this.focusX,
+      this.focusY,
+      this.balloons,
+      (b) => this.tapBalloon(b),
+      () => this.audio.playSkywriterSparkle(),
+    );
+
     // Update wheel loader: a support vehicle that pops nothing — it trundles along the
     // floor and shoves low balloons horizontally under the nearest active popping
     // vehicle so those vehicles can finish them. Feed it the positions of whichever
     // poppers are currently out; with none out it simply idles.
-    const poppers = [this.helicopter, this.plane, this.bulldozer, this.tractor, this.excavator]
+    const poppers = [
+      this.helicopter,
+      this.plane,
+      this.bulldozer,
+      this.tractor,
+      this.excavator,
+      this.jeep,
+      this.wheeledExcavator,
+      this.purplePlane,
+    ]
       .filter(v => v.isActive)
       .map(v => ({ x: v.x, y: v.y }));
-    this.wheelLoader.update(dt, freeBalloons, poppers);
+    this.wheelLoader.update(dt, this.balloons.filter(b => !b.loaded), poppers);
 
     // Update surprise events
     this.surprise.update(dt);
@@ -241,6 +297,10 @@ export class Game {
       this.renderer.drawSurpriseEventBelow(event, this.width, this.height);
     }
 
+    // The skywriter ribbon sits behind balloons so its delayed marks stay readable
+    // without obscuring the toys in the playfield.
+    this.renderer.drawPurplePlaneTrail(this.purplePlane);
+
     for (const b of this.balloons) {
       this.renderer.drawBalloon(b);
     }
@@ -266,13 +326,20 @@ export class Game {
     // reads against the balloon it is shoving (alpha 0 when not out).
     this.renderer.drawWheelLoader(this.wheelLoader);
 
+    // New ground toys share the same over-balloon layer so their bumper, scoop, and
+    // swinging buckets remain legible against the balloons they touch.
+    this.renderer.drawJeep(this.jeep);
+    this.renderer.drawBackhoe(this.backhoe);
+    this.renderer.drawWheeledExcavator(this.wheeledExcavator);
+
     // Darts and helicopter ride above the balloons
     this.renderer.drawDarts(this.helicopter.darts);
     this.renderer.drawHelicopter(this.helicopter);
 
-    // Missiles and plane ride above the balloons too
+    // Missiles and both planes ride above the balloons too.
     this.renderer.drawMissiles(this.plane.missiles);
     this.renderer.drawPlane(this.plane);
+    this.renderer.drawPurplePlane(this.purplePlane);
 
     // Rain cloud weather sits in front of the play area — the downpour streaks
     // read clearly over the balloons it is slowing.
@@ -297,9 +364,13 @@ export class Game {
       this.renderer.drawTractorButton(this.tractor);
       this.renderer.drawExcavatorButton(this.excavator);
       this.renderer.drawFiretruckButton(this.firetruck);
-      // Effect buttons live on the opposite (right) edge.
+      // The opposite edge now carries a matching six-button summon column.
       this.renderer.drawRainCloudButton(this.rainCloud);
       this.renderer.drawWheelLoaderButton(this.wheelLoader);
+      this.renderer.drawJeepButton(this.jeep);
+      this.renderer.drawBackhoeButton(this.backhoe);
+      this.renderer.drawWheeledExcavatorButton(this.wheeledExcavator);
+      this.renderer.drawPurplePlaneButton(this.purplePlane);
     }
 
     // Finale fade overlay
@@ -395,6 +466,16 @@ export class Game {
     this.tapBalloon(b);
   }
 
+  private jeepBonk(b: Balloon): void {
+    this.audio.playJeepBonk();
+    this.tapBalloon(b);
+  }
+
+  private wheeledExcavatorBonk(b: Balloon): void {
+    this.audio.playWheeledExcavatorBonk();
+    this.tapBalloon(b);
+  }
+
   private findBalloon(x: number, y: number): Balloon | null {
     for (let i = this.balloons.length - 1; i >= 0; i--) {
       // Loaded balloons belong to the tractor — not grabbable or tappable.
@@ -439,7 +520,26 @@ export class Game {
         this.audio.playWheelLoaderSpawn();
         return;
       }
+      if (this.jeep.trySpawn(x, y)) {
+        this.audio.playJeepSpawn();
+        return;
+      }
+      if (this.backhoe.trySpawn(x, y)) {
+        this.audio.playBackhoeSpawn();
+        return;
+      }
+      if (this.wheeledExcavator.trySpawn(x, y)) {
+        this.audio.playWheeledExcavatorSpawn();
+        return;
+      }
+      if (this.purplePlane.trySpawn(x, y)) {
+        this.audio.playPurplePlaneSpawn();
+        return;
+      }
       if (this.helicopter.tryGrab(id, x, y)) {
+        return;
+      }
+      if (this.jeep.tryGrab(id, x, y)) {
         return;
       }
     }
@@ -486,6 +586,7 @@ export class Game {
     }
 
     if (this.helicopter.drag(id, x, y)) return;
+    if (this.jeep.drag(id, x, y)) return;
 
     const drag = this.drags.get(id);
     if (!drag) return;
@@ -503,6 +604,7 @@ export class Game {
 
   private handlePointerUp(id: number): void {
     if (this.helicopter.release(id)) return;
+    if (this.jeep.release(id)) return;
 
     const drag = this.drags.get(id);
     if (!drag) return;
@@ -568,6 +670,10 @@ export class Game {
     this.excavator.clear();
     this.firetruck.clear();
     this.wheelLoader.clear();
+    this.jeep.clear();
+    this.backhoe.clear();
+    this.wheeledExcavator.clear();
+    this.purplePlane.clear();
   }
 
   private updateFinale(dt: number): void {
@@ -650,6 +756,14 @@ export class Game {
     this.firetruck.setScreenSize(this.width, this.height);
     this.wheelLoader.reset();
     this.wheelLoader.setScreenSize(this.width, this.height);
+    this.jeep.reset();
+    this.jeep.setScreenSize(this.width, this.height);
+    this.backhoe.reset();
+    this.backhoe.setScreenSize(this.width, this.height);
+    this.wheeledExcavator.reset();
+    this.wheeledExcavator.setScreenSize(this.width, this.height);
+    this.purplePlane.reset();
+    this.purplePlane.setScreenSize(this.width, this.height);
     this.focusX = this.width / 2;
     this.focusY = this.height / 2;
     this.session.reset();
@@ -723,6 +837,7 @@ export class Game {
           this.drags.delete(id);
         }
         this.helicopter.releaseAll();
+        this.jeep.releaseAll();
       } else {
         this.running = true;
         this.lastTime = performance.now();
@@ -746,5 +861,9 @@ export class Game {
     this.excavator.setScreenSize(this.width, this.height);
     this.firetruck.setScreenSize(this.width, this.height);
     this.wheelLoader.setScreenSize(this.width, this.height);
+    this.jeep.setScreenSize(this.width, this.height);
+    this.backhoe.setScreenSize(this.width, this.height);
+    this.wheeledExcavator.setScreenSize(this.width, this.height);
+    this.purplePlane.setScreenSize(this.width, this.height);
   }
 }

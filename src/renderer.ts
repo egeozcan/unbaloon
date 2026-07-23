@@ -98,6 +98,38 @@ import {
   WHEELLOADER_WHEEL_HUB,
   WHEELLOADER_BEACON_COLOR,
   WHEELLOADER_DETAIL_COLOR,
+  JEEP_BODY_COLOR,
+  JEEP_BODY_DARK,
+  JEEP_SEAT_COLOR,
+  JEEP_WINDOW_COLOR,
+  JEEP_WHEEL_COLOR,
+  JEEP_WHEEL_HUB,
+  JEEP_DETAIL_COLOR,
+  BACKHOE_BODY_COLOR,
+  BACKHOE_BODY_DARK,
+  BACKHOE_CAB_COLOR,
+  BACKHOE_WINDOW_COLOR,
+  BACKHOE_ARM_COLOR,
+  BACKHOE_ARM_DARK,
+  BACKHOE_BUCKET_COLOR,
+  BACKHOE_WHEEL_COLOR,
+  BACKHOE_WHEEL_HUB,
+  WHEELED_EXCAVATOR_BODY_COLOR,
+  WHEELED_EXCAVATOR_BODY_DARK,
+  WHEELED_EXCAVATOR_CAB_COLOR,
+  WHEELED_EXCAVATOR_WINDOW_COLOR,
+  WHEELED_EXCAVATOR_ARM_COLOR,
+  WHEELED_EXCAVATOR_ARM_DARK,
+  WHEELED_EXCAVATOR_BUCKET_COLOR,
+  WHEELED_EXCAVATOR_WHEEL_COLOR,
+  WHEELED_EXCAVATOR_WHEEL_HUB,
+  PURPLE_PLANE_BODY_COLOR,
+  PURPLE_PLANE_WING_COLOR,
+  PURPLE_PLANE_WINDOW_COLOR,
+  PURPLE_PLANE_ACCENT_COLOR,
+  PURPLE_PLANE_PROP_COLOR,
+  PURPLE_PLANE_TRAIL_COLOR,
+  PURPLE_PLANE_TRAIL_LIFETIME,
 } from './constants';
 import type { Balloon, Particle } from './balloon';
 import type { ActiveEvent, Bubble } from './surprise';
@@ -109,6 +141,34 @@ import type { RainCloudManager } from './raincloud';
 import type { ExcavatorManager } from './excavator';
 import type { FiretruckManager } from './firetruck';
 import type { WheelLoaderManager } from './wheelloader';
+import type { JeepManager } from './jeep';
+import type { BackhoeManager } from './backhoe';
+import type { WheeledExcavatorManager } from './wheeledexcavator';
+import type { PurplePlaneManager } from './purpleplane';
+
+interface PlanePalette {
+  body: string;
+  wing: string;
+  window: string;
+  accent: string;
+  prop: string;
+}
+
+const DEFAULT_PLANE_PALETTE: PlanePalette = {
+  body: PLANE_BODY_COLOR,
+  wing: PLANE_WING_COLOR,
+  window: PLANE_WINDOW_COLOR,
+  accent: PLANE_ACCENT_COLOR,
+  prop: PLANE_PROP_COLOR,
+};
+
+const PURPLE_PLANE_PALETTE: PlanePalette = {
+  body: PURPLE_PLANE_BODY_COLOR,
+  wing: PURPLE_PLANE_WING_COLOR,
+  window: PURPLE_PLANE_WINDOW_COLOR,
+  accent: PURPLE_PLANE_ACCENT_COLOR,
+  prop: PURPLE_PLANE_PROP_COLOR,
+};
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -968,6 +1028,7 @@ export class Renderer {
     heading: number,
     propAngle: number,
     alpha: number,
+    palette: PlanePalette = DEFAULT_PLANE_PALETTE,
   ): void {
     if (alpha <= 0) return;
     const ctx = this.ctx;
@@ -981,7 +1042,7 @@ export class Renderer {
     const lw = Math.max(1.5, s * 0.012);
 
     // Tail fin (vertical stabiliser): tall & swept, unmistakably the BACK.
-    ctx.fillStyle = PLANE_BODY_COLOR;
+    ctx.fillStyle = palette.body;
     ctx.beginPath();
     ctx.moveTo(-s * 0.22, -s * 0.05);
     ctx.lineTo(-s * 0.40, -s * 0.30);
@@ -989,7 +1050,7 @@ export class Renderer {
     ctx.quadraticCurveTo(-s * 0.45, -s * 0.16, -s * 0.36, -s * 0.05);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = PLANE_ACCENT_COLOR;
+    ctx.fillStyle = palette.accent;
     ctx.beginPath();
     ctx.moveTo(-s * 0.395, -s * 0.255);
     ctx.lineTo(-s * 0.435, -s * 0.295);
@@ -998,7 +1059,7 @@ export class Renderer {
     ctx.fill();
 
     // Horizontal tailplane.
-    ctx.fillStyle = PLANE_WING_COLOR;
+    ctx.fillStyle = palette.wing;
     ctx.beginPath();
     ctx.moveTo(-s * 0.30, -s * 0.02);
     ctx.lineTo(-s * 0.49, -s * 0.075);
@@ -1008,7 +1069,7 @@ export class Renderer {
     ctx.fill();
 
     // Fuselage: rounded nose -> smooth taper to a slim tail (NOT an ellipse).
-    ctx.fillStyle = PLANE_BODY_COLOR;
+    ctx.fillStyle = palette.body;
     ctx.beginPath();
     ctx.moveTo(s * 0.41, -s * 0.005);
     ctx.quadraticCurveTo(s * 0.41, -s * 0.135, s * 0.20, -s * 0.135);
@@ -1020,7 +1081,7 @@ export class Renderer {
     ctx.fill();
 
     // Belly shading for depth.
-    ctx.fillStyle = PLANE_WING_COLOR;
+    ctx.fillStyle = palette.wing;
     ctx.beginPath();
     ctx.moveTo(s * 0.36, s * 0.085);
     ctx.quadraticCurveTo(-s * 0.06, s * 0.155, -s * 0.42, s * 0.05);
@@ -1030,7 +1091,7 @@ export class Renderer {
     ctx.fill();
 
     // Main wing: a bold slab projecting down-and-back below the belly.
-    ctx.fillStyle = PLANE_WING_COLOR;
+    ctx.fillStyle = palette.wing;
     ctx.beginPath();
     ctx.moveTo(s * 0.10, s * 0.085);
     ctx.lineTo(s * 0.02, s * 0.255);
@@ -1038,7 +1099,7 @@ export class Renderer {
     ctx.quadraticCurveTo(-s * 0.24, s * 0.235, -s * 0.16, s * 0.10);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = PLANE_BODY_COLOR;
+    ctx.fillStyle = palette.body;
     ctx.beginPath();
     ctx.moveTo(s * 0.10, s * 0.085);
     ctx.lineTo(s * 0.05, s * 0.155);
@@ -1047,8 +1108,8 @@ export class Renderer {
     ctx.closePath();
     ctx.fill();
 
-    // Yellow accent cheat-line along the upper fuselage.
-    ctx.strokeStyle = PLANE_ACCENT_COLOR;
+    // Accent cheat-line along the upper fuselage.
+    ctx.strokeStyle = palette.accent;
     ctx.lineWidth = Math.max(2, s * 0.03);
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -1057,7 +1118,7 @@ export class Renderer {
     ctx.stroke();
 
     // Cockpit canopy: two cheerful windows on the nose shoulder.
-    ctx.fillStyle = PLANE_WINDOW_COLOR;
+    ctx.fillStyle = palette.window;
     ctx.beginPath();
     ctx.moveTo(s * 0.06, -s * 0.10);
     ctx.quadraticCurveTo(s * 0.20, -s * 0.155, s * 0.29, -s * 0.075);
@@ -1065,7 +1126,7 @@ export class Renderer {
     ctx.lineTo(s * 0.05, -s * 0.07);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = PLANE_WING_COLOR;
+    ctx.strokeStyle = palette.wing;
     ctx.lineWidth = lw;
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -1074,13 +1135,13 @@ export class Renderer {
     ctx.stroke();
 
     // Fixed landing-gear hint: a single wheel on a strut under the belly.
-    ctx.strokeStyle = PLANE_PROP_COLOR;
+    ctx.strokeStyle = palette.prop;
     ctx.lineWidth = Math.max(1.5, s * 0.022);
     ctx.beginPath();
     ctx.moveTo(s * 0.22, s * 0.12);
     ctx.lineTo(s * 0.245, s * 0.215);
     ctx.stroke();
-    ctx.fillStyle = PLANE_PROP_COLOR;
+    ctx.fillStyle = palette.prop;
     ctx.beginPath();
     ctx.arc(s * 0.25, s * 0.235, s * 0.028, 0, Math.PI * 2);
     ctx.fill();
@@ -1090,14 +1151,14 @@ export class Renderer {
     ctx.translate(s * 0.41, 0);
     const a0 = ctx.globalAlpha;
     ctx.globalAlpha = a0 * 0.15;
-    ctx.fillStyle = PLANE_PROP_COLOR;
+    ctx.fillStyle = palette.prop;
     ctx.beginPath();
     ctx.ellipse(0, 0, s * 0.028, s * 0.21, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = a0;
     const blade = s * 0.215 * Math.abs(Math.cos(propAngle));
     const tip = Math.max(s * 0.012, s * 0.024 * Math.abs(Math.cos(propAngle)));
-    ctx.fillStyle = PLANE_PROP_COLOR;
+    ctx.fillStyle = palette.prop;
     ctx.beginPath();
     ctx.moveTo(-s * 0.013, 0);
     ctx.quadraticCurveTo(-tip, -blade * 0.6, 0, -blade);
@@ -1106,11 +1167,11 @@ export class Renderer {
     ctx.quadraticCurveTo(-tip, blade * 0.6, -s * 0.013, 0);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = PLANE_ACCENT_COLOR;
+    ctx.fillStyle = palette.accent;
     ctx.beginPath();
     ctx.arc(0, 0, s * 0.05, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = PLANE_PROP_COLOR;
+    ctx.fillStyle = palette.prop;
     ctx.beginPath();
     ctx.arc(0, 0, s * 0.022, 0, Math.PI * 2);
     ctx.fill();
@@ -2906,6 +2967,384 @@ export class Renderer {
       ctx.stroke();
       ctx.restore();
     }
+  }
+
+  // ── New right-column toy vehicles ──────────────────────────────────────────
+
+  drawJeep(jeep: JeepManager): void {
+    if (jeep.alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = jeep.alpha;
+    this.drawJeepRig(jeep.x, jeep.y, jeep.size, jeep.facing, jeep.wheelPhase, jeep.bonkPulse);
+    ctx.restore();
+  }
+
+  private drawJeepRig(cx: number, cy: number, s: number, facing: number, wheelPhase: number, bonkPulse: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(facing >= 0 ? 1 : -1, 1);
+    for (const wx of [-0.30 * s, 0.30 * s]) {
+      ctx.fillStyle = JEEP_WHEEL_COLOR;
+      ctx.beginPath();
+      ctx.arc(wx, 0.24 * s, 0.18 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = JEEP_WHEEL_HUB;
+      ctx.beginPath();
+      ctx.arc(wx, 0.24 * s, 0.075 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = JEEP_DETAIL_COLOR;
+      ctx.lineWidth = Math.max(1, s * 0.012);
+      ctx.beginPath();
+      ctx.moveTo(wx, 0.24 * s);
+      ctx.lineTo(wx + Math.cos(wheelPhase) * 0.06 * s, 0.24 * s + Math.sin(wheelPhase) * 0.06 * s);
+      ctx.stroke();
+    }
+    ctx.fillStyle = JEEP_DETAIL_COLOR;
+    this.roundedRectPath(-0.45 * s, 0.10 * s, 0.90 * s, 0.13 * s, 0.04 * s);
+    ctx.fill();
+    ctx.fillStyle = JEEP_BODY_COLOR;
+    this.roundedRectPath(-0.48 * s, -0.08 * s, 0.92 * s, 0.28 * s, 0.08 * s);
+    ctx.fill();
+    ctx.fillStyle = JEEP_BODY_DARK;
+    this.roundedRectPath(-0.44 * s, 0.11 * s, 0.86 * s, 0.08 * s, 0.03 * s);
+    ctx.fill();
+    ctx.fillStyle = JEEP_SEAT_COLOR;
+    this.roundedRectPath(-0.14 * s, -0.28 * s, 0.30 * s, 0.20 * s, 0.04 * s);
+    ctx.fill();
+    ctx.fillStyle = JEEP_WINDOW_COLOR;
+    this.roundedRectPath(0.02 * s, -0.25 * s, 0.22 * s, 0.13 * s, 0.025 * s);
+    ctx.fill();
+    ctx.strokeStyle = JEEP_DETAIL_COLOR;
+    ctx.lineWidth = Math.max(2, s * 0.025);
+    ctx.beginPath();
+    ctx.moveTo(-0.12 * s, -0.28 * s);
+    ctx.lineTo(-0.20 * s, -0.48 * s);
+    ctx.lineTo(0.22 * s, -0.48 * s);
+    ctx.lineTo(0.29 * s, -0.24 * s);
+    ctx.stroke();
+    ctx.fillStyle = JEEP_DETAIL_COLOR;
+    this.roundedRectPath(0.43 * s, 0.02 * s - bonkPulse * 0.025 * s, 0.14 * s, 0.07 * s, 0.02 * s);
+    ctx.fill();
+    ctx.fillStyle = JEEP_SEAT_COLOR;
+    ctx.beginPath();
+    ctx.arc(0.43 * s, -0.03 * s, 0.035 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  drawBackhoe(backhoe: BackhoeManager): void {
+    if (backhoe.alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = backhoe.alpha;
+    this.drawBackhoeRig(backhoe, backhoe.x, backhoe.y, backhoe.size, backhoe.facing, backhoe.wheelPhase);
+    ctx.restore();
+  }
+
+  private drawBackhoeRig(backhoe: BackhoeManager | null, cx: number, cy: number, s: number, facing: number, wheelPhase: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(facing >= 0 ? 1 : -1, 1);
+    for (const [wx, wr] of [[-0.30, 0.20], [0.29, 0.16]] as const) {
+      ctx.fillStyle = BACKHOE_WHEEL_COLOR;
+      ctx.beginPath();
+      ctx.arc(wx * s, 0.23 * s, wr * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = BACKHOE_WHEEL_HUB;
+      ctx.beginPath();
+      ctx.arc(wx * s, 0.23 * s, wr * s * 0.38, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = BACKHOE_BODY_DARK;
+      ctx.lineWidth = Math.max(1, s * 0.012);
+      ctx.beginPath();
+      ctx.moveTo(wx * s, 0.23 * s);
+      ctx.lineTo(wx * s + Math.cos(wheelPhase) * wr * s * 0.28, 0.23 * s + Math.sin(wheelPhase) * wr * s * 0.28);
+      ctx.stroke();
+    }
+    ctx.fillStyle = BACKHOE_BODY_COLOR;
+    this.roundedRectPath(-0.48 * s, -0.08 * s, 0.88 * s, 0.27 * s, 0.05 * s);
+    ctx.fill();
+    ctx.fillStyle = BACKHOE_CAB_COLOR;
+    this.roundedRectPath(-0.12 * s, -0.36 * s, 0.34 * s, 0.30 * s, 0.05 * s);
+    ctx.fill();
+    ctx.fillStyle = BACKHOE_WINDOW_COLOR;
+    this.roundedRectPath(-0.07 * s, -0.31 * s, 0.23 * s, 0.18 * s, 0.03 * s);
+    ctx.fill();
+    ctx.fillStyle = BACKHOE_BODY_DARK;
+    this.roundedRectPath(0.36 * s, -0.03 * s, 0.30 * s, 0.07 * s, 0.025 * s);
+    ctx.fill();
+    ctx.fillStyle = BACKHOE_BUCKET_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(0.59 * s, -0.12 * s);
+    ctx.lineTo(0.77 * s, -0.04 * s);
+    ctx.lineTo(0.69 * s, 0.10 * s);
+    ctx.lineTo(0.52 * s, 0.06 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    if (backhoe) {
+      this.drawColoredArm(
+        s, backhoe.shoulderX, backhoe.shoulderY, backhoe.elbowX, backhoe.elbowY,
+        backhoe.bucketX, backhoe.bucketY, backhoe.bucketAngle,
+        BACKHOE_ARM_COLOR, BACKHOE_ARM_DARK, BACKHOE_BUCKET_COLOR,
+      );
+    }
+  }
+
+  drawWheeledExcavator(ex: WheeledExcavatorManager): void {
+    if (ex.alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = ex.alpha;
+    this.drawWheeledExcavatorBase(ex.x, ex.y, ex.size, ex.facing, ex.wheelPhase, ex.houseAngle);
+    this.drawColoredArm(
+      ex.size, ex.shoulderX, ex.shoulderY, ex.elbowX, ex.elbowY,
+      ex.bucketX, ex.bucketY, ex.bucketAngle,
+      WHEELED_EXCAVATOR_ARM_COLOR, WHEELED_EXCAVATOR_ARM_DARK, WHEELED_EXCAVATOR_BUCKET_COLOR,
+    );
+    ctx.restore();
+  }
+
+  private drawWheeledExcavatorBase(cx: number, cy: number, s: number, facing: number, wheelPhase: number, houseAngle: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(facing >= 0 ? 1 : -1, 1);
+    for (const wx of [-0.36, -0.12, 0.14, 0.38]) {
+      ctx.fillStyle = WHEELED_EXCAVATOR_WHEEL_COLOR;
+      ctx.beginPath();
+      ctx.arc(wx * s, 0.27 * s, 0.145 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = WHEELED_EXCAVATOR_WHEEL_HUB;
+      ctx.beginPath();
+      ctx.arc(wx * s, 0.27 * s, 0.055 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = WHEELED_EXCAVATOR_BODY_DARK;
+      ctx.lineWidth = Math.max(1, s * 0.012);
+      ctx.beginPath();
+      ctx.moveTo(wx * s, 0.27 * s);
+      ctx.lineTo(wx * s + Math.cos(wheelPhase) * 0.045 * s, 0.27 * s + Math.sin(wheelPhase) * 0.045 * s);
+      ctx.stroke();
+    }
+    ctx.fillStyle = WHEELED_EXCAVATOR_BODY_DARK;
+    this.roundedRectPath(-0.48 * s, 0.08 * s, 0.96 * s, 0.15 * s, 0.04 * s);
+    ctx.fill();
+    ctx.save();
+    ctx.rotate((houseAngle + Math.PI / 2) * 0.08);
+    ctx.fillStyle = WHEELED_EXCAVATOR_BODY_COLOR;
+    this.roundedRectPath(-0.37 * s, -0.18 * s, 0.70 * s, 0.27 * s, 0.06 * s);
+    ctx.fill();
+    ctx.fillStyle = WHEELED_EXCAVATOR_CAB_COLOR;
+    this.roundedRectPath(0.05 * s, -0.39 * s, 0.27 * s, 0.27 * s, 0.05 * s);
+    ctx.fill();
+    ctx.fillStyle = WHEELED_EXCAVATOR_WINDOW_COLOR;
+    this.roundedRectPath(0.10 * s, -0.34 * s, 0.17 * s, 0.16 * s, 0.03 * s);
+    ctx.fill();
+    ctx.restore();
+    ctx.restore();
+  }
+
+  private drawColoredArm(
+    s: number,
+    sx: number, sy: number, ex: number, ey: number, bx: number, by: number,
+    bucketAngle: number,
+    armColor: string,
+    darkColor: string,
+    bucketColor: string,
+  ): void {
+    const ctx = this.ctx;
+    const drawSegment = (x1: number, y1: number, x2: number, y2: number, w1: number, w2: number) => {
+      ctx.fillStyle = darkColor;
+      this.armQuadPath(x1, y1, x2, y2, w1 + s * 0.035, w2 + s * 0.035);
+      ctx.fill();
+      ctx.fillStyle = armColor;
+      this.armQuadPath(x1, y1, x2, y2, w1, w2);
+      ctx.fill();
+    };
+    drawSegment(sx, sy, ex, ey, s * 0.14, s * 0.10);
+    drawSegment(ex, ey, bx, by, s * 0.10, s * 0.07);
+    for (const [jx, jy, jr] of [[sx, sy, 0.07], [ex, ey, 0.06]] as const) {
+      ctx.fillStyle = darkColor;
+      ctx.beginPath();
+      ctx.arc(jx, jy, jr * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = armColor;
+      ctx.beginPath();
+      ctx.arc(jx, jy, jr * s * 0.48, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(bucketAngle + 0.35);
+    ctx.fillStyle = bucketColor;
+    ctx.beginPath();
+    ctx.moveTo(-0.17 * s, -0.10 * s);
+    ctx.quadraticCurveTo(-0.19 * s, 0.16 * s, 0.02 * s, 0.18 * s);
+    ctx.lineTo(0.20 * s, 0.10 * s);
+    ctx.lineTo(0.13 * s, -0.10 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = darkColor;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * 0.07 * s, 0.15 * s);
+      ctx.lineTo((i * 0.07 + 0.035) * s, 0.24 * s);
+      ctx.lineTo((i * 0.07 + 0.07) * s, 0.15 * s);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawPurplePlaneTrail(plane: PurplePlaneManager): void {
+    if (plane.alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    for (const puff of plane.trail) {
+      const fade = Math.max(0, 1 - puff.age / PURPLE_PLANE_TRAIL_LIFETIME) * plane.alpha;
+      ctx.globalAlpha = fade * 0.42;
+      ctx.fillStyle = PURPLE_PLANE_TRAIL_COLOR;
+      ctx.beginPath();
+      ctx.arc(puff.x, puff.y, puff.radius * (1 + puff.age * 0.22), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawPurplePlane(plane: PurplePlaneManager): void {
+    this.drawPlaneShape(
+      plane.x, plane.y, plane.size, plane.heading, plane.propAngle, plane.alpha, PURPLE_PLANE_PALETTE,
+    );
+    if (plane.sparklePulse <= 0) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = plane.sparklePulse * plane.alpha;
+    ctx.strokeStyle = PURPLE_PLANE_ACCENT_COLOR;
+    ctx.lineWidth = Math.max(2, plane.size * 0.018);
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8 + plane.animTime * 2;
+      const inner = plane.size * 0.46;
+      const outer = inner + plane.size * (0.10 + 0.08 * plane.sparklePulse);
+      ctx.beginPath();
+      ctx.moveTo(plane.x + Math.cos(angle) * inner, plane.y + Math.sin(angle) * inner);
+      ctx.lineTo(plane.x + Math.cos(angle) * outer, plane.y + Math.sin(angle) * outer);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  private drawNewVehicleButton(
+    cx: number,
+    cy: number,
+    r: number,
+    available: boolean,
+    pulse: number,
+    color: string,
+    cooldownProgress: number,
+    drawIcon: () => void,
+  ): void {
+    const ctx = this.ctx;
+    if (available) {
+      ctx.save();
+      ctx.globalAlpha = 0.25 + 0.35 * pulse;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (1.1 + 0.12 * pulse), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.fillStyle = available ? 'rgba(255, 255, 255, 0.9)' : 'rgba(214, 222, 230, 0.75)';
+    ctx.strokeStyle = available ? color : 'rgba(120, 140, 160, 0.8)';
+    ctx.lineWidth = Math.max(2, r * 0.08);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.globalAlpha = available ? 1 : 0.4;
+    drawIcon();
+    ctx.restore();
+    if (!available) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(3, r * 0.12);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 1.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cooldownProgress);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  drawJeepButton(jeep: JeepManager): void {
+    if (jeep.isActive) return;
+    this.drawNewVehicleButton(
+      jeep.buttonX, jeep.buttonY, jeep.buttonRadius, jeep.isAvailable, jeep.buttonPulse,
+      JEEP_BODY_DARK, jeep.cooldownProgress,
+      () => this.drawJeepRig(jeep.buttonX, jeep.buttonY + jeep.buttonRadius * 0.16, jeep.buttonRadius * 1.18, -1, 0, 0),
+    );
+  }
+
+  drawBackhoeButton(backhoe: BackhoeManager): void {
+    if (backhoe.isActive) return;
+    this.drawNewVehicleButton(
+      backhoe.buttonX, backhoe.buttonY, backhoe.buttonRadius, backhoe.isAvailable, backhoe.buttonPulse,
+      BACKHOE_BODY_DARK, backhoe.cooldownProgress,
+      () => {
+        const s = backhoe.buttonRadius * 1.05;
+        const cy = backhoe.buttonY + backhoe.buttonRadius * 0.17;
+        this.drawBackhoeRig(null, backhoe.buttonX, cy, s, 1, 0);
+        const sx = backhoe.buttonX - 0.20 * s;
+        const sy = cy - 0.32 * s;
+        const ex = backhoe.buttonX - 0.40 * s;
+        const ey = cy - 0.67 * s;
+        const bx = backhoe.buttonX - 0.58 * s;
+        const by = cy - 0.30 * s;
+        this.drawColoredArm(
+          s, sx, sy, ex, ey, bx, by, Math.atan2(by - ey, bx - ex),
+          BACKHOE_ARM_COLOR, BACKHOE_ARM_DARK, BACKHOE_BUCKET_COLOR,
+        );
+      },
+    );
+  }
+
+  drawWheeledExcavatorButton(ex: WheeledExcavatorManager): void {
+    if (ex.isActive) return;
+    this.drawNewVehicleButton(
+      ex.buttonX, ex.buttonY, ex.buttonRadius, ex.isAvailable, ex.buttonPulse,
+      WHEELED_EXCAVATOR_BODY_DARK, ex.cooldownProgress,
+      () => {
+        const s = ex.buttonRadius * 1.02;
+        const cy = ex.buttonY + ex.buttonRadius * 0.18;
+        this.drawWheeledExcavatorBase(ex.buttonX, cy, s, 1, 0, -Math.PI / 2);
+        const sx = ex.buttonX + 0.04 * s;
+        const sy = cy - 0.20 * s;
+        const elx = ex.buttonX + 0.17 * s;
+        const ely = cy - 0.72 * s;
+        const bx = ex.buttonX + 0.56 * s;
+        const by = cy - 0.43 * s;
+        this.drawColoredArm(
+          s, sx, sy, elx, ely, bx, by, Math.atan2(by - ely, bx - elx),
+          WHEELED_EXCAVATOR_ARM_COLOR, WHEELED_EXCAVATOR_ARM_DARK, WHEELED_EXCAVATOR_BUCKET_COLOR,
+        );
+      },
+    );
+  }
+
+  drawPurplePlaneButton(plane: PurplePlaneManager): void {
+    if (plane.isActive) return;
+    this.drawNewVehicleButton(
+      plane.buttonX, plane.buttonY, plane.buttonRadius, plane.isAvailable, plane.buttonPulse,
+      PURPLE_PLANE_BODY_COLOR, plane.cooldownProgress,
+      () => this.drawPlaneShape(
+        plane.buttonX, plane.buttonY, plane.buttonRadius * 1.48, Math.PI + 0.35,
+        plane.propAngle, plane.isAvailable ? 1 : 0.4, PURPLE_PLANE_PALETTE,
+      ),
+    );
   }
 
 }

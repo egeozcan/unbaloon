@@ -4,6 +4,10 @@ import { BulldozerManager } from '../bulldozer';
 import { ExcavatorManager } from '../excavator';
 import { FiretruckManager } from '../firetruck';
 import { WheelLoaderManager } from '../wheelloader';
+import { JeepManager } from '../jeep';
+import { BackhoeManager } from '../backhoe';
+import { WheeledExcavatorManager } from '../wheeledexcavator';
+import { PurplePlaneManager } from '../purpleplane';
 
 // A minimal stand-in for CanvasRenderingContext2D that records save/restore
 // balance and swallows every drawing call. Enough to smoke-test that the canvas
@@ -243,6 +247,71 @@ describe('Renderer wheel loader drawing', () => {
         l.update(1000, [], []); // -> cooldown
       }
       renderer.drawWheelLoaderButton(l);
+      expect(mock.depth()).toBe(0);
+      expect(mock.minDepth()).toBe(0);
+    }
+  });
+});
+
+describe('Renderer new vehicle drawing', () => {
+  it('draws all four active vehicles without leaking canvas state', () => {
+    const mock = makeMockCtx();
+    const renderer = new Renderer(mock.ctx);
+    const jeep = new JeepManager();
+    const backhoe = new BackhoeManager();
+    const excavator = new WheeledExcavatorManager();
+    const plane = new PurplePlaneManager();
+    for (const manager of [jeep, backhoe, excavator, plane]) {
+      manager.setScreenSize(800, 600);
+      manager.spawn();
+      (manager as any).lifeTimer = 1;
+    }
+    jeep.bonkPulse = 1;
+    backhoe.update(1 / 60, 300, 300, []);
+    excavator.update(1 / 60, [], () => {});
+    plane.update(0.1, 400, 300, [], () => {});
+
+    renderer.drawJeep(jeep);
+    renderer.drawBackhoe(backhoe);
+    renderer.drawWheeledExcavator(excavator);
+    renderer.drawPurplePlaneTrail(plane);
+    renderer.drawPurplePlane(plane);
+    expect(mock.depth()).toBe(0);
+    expect(mock.minDepth()).toBe(0);
+  });
+
+  it('skips all four body drawings while they are invisible', () => {
+    const mock = makeMockCtx();
+    const renderer = new Renderer(mock.ctx);
+    const jeep = new JeepManager();
+    const backhoe = new BackhoeManager();
+    const excavator = new WheeledExcavatorManager();
+    const plane = new PurplePlaneManager();
+    for (const manager of [jeep, backhoe, excavator, plane]) manager.setScreenSize(800, 600);
+    renderer.drawJeep(jeep);
+    renderer.drawBackhoe(backhoe);
+    renderer.drawWheeledExcavator(excavator);
+    renderer.drawPurplePlaneTrail(plane);
+    renderer.drawPurplePlane(plane);
+    expect(mock.maxDepth()).toBe(0);
+  });
+
+  it('draws every new button available and cooling down without leaking saves', () => {
+    for (const cooling of [false, true]) {
+      const mock = makeMockCtx();
+      const renderer = new Renderer(mock.ctx);
+      const jeep = new JeepManager();
+      const backhoe = new BackhoeManager();
+      const excavator = new WheeledExcavatorManager();
+      const plane = new PurplePlaneManager();
+      for (const manager of [jeep, backhoe, excavator, plane]) {
+        manager.setScreenSize(800, 600);
+        if (cooling) Object.assign(manager, { state: 'cooldown' });
+      }
+      renderer.drawJeepButton(jeep);
+      renderer.drawBackhoeButton(backhoe);
+      renderer.drawWheeledExcavatorButton(excavator);
+      renderer.drawPurplePlaneButton(plane);
       expect(mock.depth()).toBe(0);
       expect(mock.minDepth()).toBe(0);
     }

@@ -57,13 +57,11 @@ export function vehicleButtonY(index: number, width: number, height: number): nu
   return top + index * slot;
 }
 
-// Effect buttons (rain cloud, …) form a second column down the RIGHT edge,
-// mirroring the vehicle column opposite it. They deliberately reuse the vehicle
-// column's radius and vertical rhythm (vehicleButtonRadius/vehicleButtonY), so the
-// two columns sit symmetrically and index 0 of each lines up horizontally.
-// Mirrored x = the vehicle x reflected across the screen's vertical centre. (No
-// separate count: the effect column borrows the vehicle column's slot layout; if
-// it ever needs to grow independently, parameterise the column math on a count.)
+// A second summon column runs down the RIGHT edge, mirroring the original vehicle
+// column. It contains the rain cloud, wheel loader, jeep, backhoe, wheeled excavator,
+// and purple plane. Both sides deliberately reuse the same radius and vertical rhythm
+// so all six rows align and the controls carry equal visual weight.
+// Mirrored x = the vehicle x reflected across the screen's vertical centre.
 export function effectButtonX(width: number, height: number): number {
   return width - HELI_BUTTON_MARGIN - vehicleButtonRadius(width, height);
 }

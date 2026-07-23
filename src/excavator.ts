@@ -18,6 +18,7 @@ import {
   EXCAVATOR_CHOMP_INTERVAL,
 } from './constants';
 import { vehicleButtonRadius, vehicleButtonX, vehicleButtonY } from './buttonLayout';
+import { solveTwoLinkArm } from './armKinematics';
 
 export type ExcavatorState = 'idle' | 'active' | 'cooldown';
 
@@ -339,52 +340,24 @@ export class ExcavatorManager {
   }
 
   // Two-link inverse kinematics: place the elbow so the boom runs shoulder → elbow
-  // and the stick runs elbow → bucket (the eased tip). The tip is clamped into the
-  // arm's reachable annulus first so a goal beyond reach just extends the arm fully.
+  // and the stick runs elbow → bucket (the eased tip). The shared solver clamps the
+  // tip into the reachable annulus and chooses the higher elbow silhouette.
   private solveArm(): void {
-    const sx = this.shoulderX;
-    const sy = this.shoulderY;
-    const L1 = this.boomLen;
-    const L2 = this.stickLen;
-    const maxR = L1 + L2;
-    const minR = Math.abs(L1 - L2) + 0.001;
-
-    let dx = this.tipX - sx;
-    let dy = this.tipY - sy;
-    let d = Math.hypot(dx, dy);
-    if (d < 1e-4) {
-      // Degenerate (tip resting on the shoulder) — fold the arm straight up by
-      // default rather than down through the body (screen y grows downward).
-      dx = 0;
-      dy = -1e-4;
-      d = 1e-4;
-    }
-    const clamped = Math.max(minR, Math.min(maxR, d));
-    if (clamped !== d) {
-      dx = (dx / d) * clamped;
-      dy = (dy / d) * clamped;
-      d = clamped;
-      this.tipX = sx + dx;
-      this.tipY = sy + dy;
-    }
-
-    const ang = Math.atan2(dy, dx);
-    const cosA = (d * d + L1 * L1 - L2 * L2) / (2 * L1 * d);
-    const A = Math.acos(Math.max(-1, Math.min(1, cosA)));
-    // Of the two elbow solutions (mirror images across the shoulder→tip line), keep
-    // the one with the higher elbow (smaller y) so the boom rises and the stick
-    // descends to the bucket — the classic excavator silhouette, for any target.
-    const b1 = ang - A;
-    const b2 = ang + A;
-    const ey1 = sy + Math.sin(b1) * L1;
-    const ey2 = sy + Math.sin(b2) * L1;
-    const boomAng = ey1 <= ey2 ? b1 : b2;
-
-    this.elbowX = sx + Math.cos(boomAng) * L1;
-    this.elbowY = sy + Math.sin(boomAng) * L1;
-    this.bucketX = this.tipX;
-    this.bucketY = this.tipY;
-    this.bucketAngle = Math.atan2(this.bucketY - this.elbowY, this.bucketX - this.elbowX);
+    const arm = solveTwoLinkArm(
+      this.shoulderX,
+      this.shoulderY,
+      this.tipX,
+      this.tipY,
+      this.boomLen,
+      this.stickLen,
+    );
+    this.elbowX = arm.elbowX;
+    this.elbowY = arm.elbowY;
+    this.tipX = arm.tipX;
+    this.tipY = arm.tipY;
+    this.bucketX = arm.tipX;
+    this.bucketY = arm.tipY;
+    this.bucketAngle = arm.endAngle;
   }
 
   // The bucket tip has eased onto the target's grip point.

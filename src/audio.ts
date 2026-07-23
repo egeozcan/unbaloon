@@ -883,4 +883,75 @@ export class AudioManager {
     clunk.start(now + 0.75);
     clunk.stop(now + 0.94);
   }
+
+  // ── Right-column vehicle sounds ────────────────────────────────────────────
+
+  playJeepSpawn(): void {
+    this.playTone(105, 155, 0.42, 'sawtooth', 0.10);
+    this.playTone(520, 650, 0.16, 'triangle', 0.07, 0.18);
+  }
+
+  playJeepBonk(): void {
+    this.playTone(190, 80, 0.12, 'square', 0.09);
+    this.playTone(680, 420, 0.10, 'triangle', 0.045, 0.02);
+  }
+
+  playBackhoeSpawn(): void {
+    this.playTone(54, 88, 0.70, 'sawtooth', 0.10);
+    this.playTone(280, 520, 0.32, 'triangle', 0.045, 0.20);
+  }
+
+  playBackhoeScoop(): void {
+    this.playTone(250, 470, 0.20, 'sawtooth', 0.055);
+    this.playTone(150, 76, 0.12, 'square', 0.07, 0.13);
+  }
+
+  playBackhoeDrop(): void {
+    this.playTone(260, 110, 0.15, 'sine', 0.07);
+  }
+
+  playWheeledExcavatorSpawn(): void {
+    this.playTone(48, 92, 0.75, 'sawtooth', 0.11);
+    this.playTone(360, 690, 0.34, 'triangle', 0.045, 0.22);
+  }
+
+  playWheeledExcavatorBonk(): void {
+    this.playTone(170, 70, 0.13, 'square', 0.085);
+    this.playTone(420, 250, 0.16, 'triangle', 0.04);
+  }
+
+  playPurplePlaneSpawn(): void {
+    this.playTone(120, 210, 0.62, 'sawtooth', 0.09);
+    this.playTone(620, 880, 0.42, 'triangle', 0.045, 0.10);
+  }
+
+  playSkywriterSparkle(): void {
+    for (let i = 0; i < 4; i++) {
+      this.playTone(720 + i * 150, 980 + i * 170, 0.18, 'sine', 0.035, i * 0.045);
+    }
+  }
+
+  private playTone(
+    startFrequency: number,
+    endFrequency: number,
+    duration: number,
+    type: OscillatorType,
+    volume: number,
+    delay = 0,
+  ): void {
+    const ctx = this.ensureContext();
+    const start = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(startFrequency, start);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), start + duration);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.linearRampToValueAtTime(volume, start + Math.min(0.025, duration * 0.25));
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + duration);
+  }
 }
