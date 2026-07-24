@@ -2985,52 +2985,302 @@ export class Renderer {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(facing >= 0 ? 1 : -1, 1);
-    for (const wx of [-0.30 * s, 0.30 * s]) {
-      ctx.fillStyle = JEEP_WHEEL_COLOR;
-      ctx.beginPath();
-      ctx.arc(wx, 0.24 * s, 0.18 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = JEEP_WHEEL_HUB;
-      ctx.beginPath();
-      ctx.arc(wx, 0.24 * s, 0.075 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = JEEP_DETAIL_COLOR;
-      ctx.lineWidth = Math.max(1, s * 0.012);
-      ctx.beginPath();
-      ctx.moveTo(wx, 0.24 * s);
-      ctx.lineTo(wx + Math.cos(wheelPhase) * 0.06 * s, 0.24 * s + Math.sin(wheelPhase) * 0.06 * s);
-      ctx.stroke();
+
+    const bodyColor = JEEP_BODY_COLOR;
+    const darkBody = JEEP_BODY_DARK;
+    const highlightBody = this.shadeColor(bodyColor, 0.35);
+    const detailColor = JEEP_DETAIL_COLOR;
+    const wheelColor = JEEP_WHEEL_COLOR;
+    const hubColor = JEEP_WHEEL_HUB;
+
+    // 1. Heavy Black Fender Flares (drawn around wheels)
+    ctx.fillStyle = detailColor;
+    ctx.beginPath();
+    ctx.arc(-0.28 * s, 0.20 * s, 0.22 * s, Math.PI, 0);
+    ctx.lineTo(-0.06 * s, 0.14 * s);
+    ctx.lineTo(-0.50 * s, 0.14 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(0.28 * s, 0.20 * s, 0.22 * s, Math.PI, 0);
+    ctx.lineTo(0.50 * s, 0.14 * s);
+    ctx.lineTo(0.06 * s, 0.14 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Chassis / Underbody & Rocker Step Rails
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(-0.46 * s, 0.12 * s, 0.92 * s, 0.10 * s, 0.03 * s);
+    ctx.fill();
+
+    ctx.fillStyle = darkBody;
+    this.roundedRectPath(-0.16 * s, 0.14 * s, 0.32 * s, 0.04 * s, 0.015 * s);
+    ctx.fill();
+    ctx.fillStyle = '#A0B0B8';
+    this.roundedRectPath(-0.14 * s, 0.145 * s, 0.28 * s, 0.015 * s, 0.005 * s);
+    ctx.fill();
+
+    // 3. Main Jeep Body & Hood
+    ctx.fillStyle = bodyColor;
+    this.roundedRectPath(-0.48 * s, -0.06 * s, 0.44 * s, 0.20 * s, 0.04 * s);
+    ctx.fill();
+
+    this.roundedRectPath(-0.08 * s, -0.14 * s, 0.56 * s, 0.28 * s, 0.05 * s);
+    ctx.fill();
+
+    // Door cutout & tub rim
+    ctx.beginPath();
+    ctx.moveTo(-0.48 * s, -0.06 * s);
+    ctx.lineTo(-0.10 * s, -0.06 * s);
+    ctx.lineTo(-0.06 * s, -0.14 * s);
+    ctx.lineTo(0.48 * s, -0.14 * s);
+    ctx.lineTo(0.48 * s, 0.14 * s);
+    ctx.lineTo(-0.48 * s, 0.14 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Top Hood Sheen / Cowl Highlight
+    ctx.fillStyle = highlightBody;
+    this.roundedRectPath(-0.04 * s, -0.14 * s, 0.50 * s, 0.04 * s, 0.02 * s);
+    ctx.fill();
+
+    // Lower Body Shadow Trim Line
+    ctx.fillStyle = darkBody;
+    this.roundedRectPath(-0.46 * s, 0.08 * s, 0.92 * s, 0.05 * s, 0.02 * s);
+    ctx.fill();
+
+    // 4. Iconic Vertical Front Grille Slots
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(0.45 * s, -0.13 * s, 0.04 * s, 0.23 * s, 0.015 * s);
+    ctx.fill();
+    ctx.fillStyle = darkBody;
+    for (let i = 0; i < 4; i++) {
+      ctx.fillRect(0.46 * s, -0.10 * s + i * 0.05 * s, 0.025 * s, 0.03 * s);
     }
-    ctx.fillStyle = JEEP_DETAIL_COLOR;
-    this.roundedRectPath(-0.45 * s, 0.10 * s, 0.90 * s, 0.13 * s, 0.04 * s);
-    ctx.fill();
-    ctx.fillStyle = JEEP_BODY_COLOR;
-    this.roundedRectPath(-0.48 * s, -0.08 * s, 0.92 * s, 0.28 * s, 0.08 * s);
-    ctx.fill();
-    ctx.fillStyle = JEEP_BODY_DARK;
-    this.roundedRectPath(-0.44 * s, 0.11 * s, 0.86 * s, 0.08 * s, 0.03 * s);
-    ctx.fill();
-    ctx.fillStyle = JEEP_SEAT_COLOR;
-    this.roundedRectPath(-0.14 * s, -0.28 * s, 0.30 * s, 0.20 * s, 0.04 * s);
-    ctx.fill();
-    ctx.fillStyle = JEEP_WINDOW_COLOR;
-    this.roundedRectPath(0.02 * s, -0.25 * s, 0.22 * s, 0.13 * s, 0.025 * s);
-    ctx.fill();
-    ctx.strokeStyle = JEEP_DETAIL_COLOR;
-    ctx.lineWidth = Math.max(2, s * 0.025);
+
+    // 5. Classic Round Headlight & Indicator
+    ctx.fillStyle = detailColor;
     ctx.beginPath();
-    ctx.moveTo(-0.12 * s, -0.28 * s);
-    ctx.lineTo(-0.20 * s, -0.48 * s);
-    ctx.lineTo(0.22 * s, -0.48 * s);
-    ctx.lineTo(0.29 * s, -0.24 * s);
+    ctx.arc(0.47 * s, -0.04 * s, 0.05 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFF8D0';
+    ctx.beginPath();
+    ctx.arc(0.475 * s, -0.04 * s, 0.04 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(0.465 * s, -0.055 * s, 0.015 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FF9800';
+    ctx.beginPath();
+    ctx.arc(0.47 * s, 0.05 * s, 0.022 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 6. Rear Taillight Assembly
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(-0.50 * s, -0.01 * s, 0.03 * s, 0.07 * s, 0.01 * s);
+    ctx.fill();
+    ctx.fillStyle = '#E53935';
+    this.roundedRectPath(-0.505 * s, 0.0 * s, 0.025 * s, 0.05 * s, 0.008 * s);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(-0.505 * s, 0.01 * s, 0.008 * s, 0.015 * s);
+
+    // 7. Interior: Bucket Seats, Headrests, Steering Wheel & Dashboard
+    ctx.fillStyle = JEEP_SEAT_COLOR;
+    this.roundedRectPath(-0.38 * s, -0.24 * s, 0.18 * s, 0.18 * s, 0.04 * s);
+    ctx.fill();
+    this.roundedRectPath(-0.35 * s, -0.32 * s, 0.12 * s, 0.09 * s, 0.03 * s);
+    ctx.fill();
+
+    this.roundedRectPath(-0.16 * s, -0.28 * s, 0.22 * s, 0.22 * s, 0.05 * s);
+    ctx.fill();
+    this.roundedRectPath(-0.12 * s, -0.37 * s, 0.14 * s, 0.10 * s, 0.035 * s);
+    ctx.fill();
+
+    ctx.strokeStyle = this.shadeColor(JEEP_SEAT_COLOR, -0.25);
+    ctx.lineWidth = Math.max(1, s * 0.012);
+    ctx.beginPath();
+    ctx.moveTo(-0.05 * s, -0.28 * s);
+    ctx.lineTo(-0.05 * s, -0.06 * s);
     ctx.stroke();
-    ctx.fillStyle = JEEP_DETAIL_COLOR;
-    this.roundedRectPath(0.43 * s, 0.02 * s - bonkPulse * 0.025 * s, 0.14 * s, 0.07 * s, 0.02 * s);
+
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(0.04 * s, -0.16 * s, 0.06 * s, 0.10 * s, 0.02 * s);
     ctx.fill();
-    ctx.fillStyle = JEEP_SEAT_COLOR;
+
+    ctx.strokeStyle = detailColor;
+    ctx.lineWidth = Math.max(2, s * 0.02);
     ctx.beginPath();
-    ctx.arc(0.43 * s, -0.03 * s, 0.035 * s, 0, Math.PI * 2);
+    ctx.moveTo(0.08 * s, -0.10 * s);
+    ctx.lineTo(0.16 * s, -0.20 * s);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(1.8, s * 0.018);
+    ctx.beginPath();
+    ctx.arc(0.18 * s, -0.22 * s, 0.045 * s, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = Math.max(1, s * 0.01);
+    ctx.beginPath();
+    ctx.moveTo(0.18 * s, -0.22 * s);
+    ctx.lineTo(0.18 * s, -0.265 * s);
+    ctx.moveTo(0.18 * s, -0.22 * s);
+    ctx.lineTo(0.14 * s, -0.19 * s);
+    ctx.moveTo(0.18 * s, -0.22 * s);
+    ctx.lineTo(0.22 * s, -0.19 * s);
+    ctx.stroke();
+
+    // 8. Slanted Windshield & Frame
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.moveTo(0.04 * s, -0.14 * s);
+    ctx.lineTo(-0.03 * s, -0.48 * s);
+    ctx.lineTo(0.26 * s, -0.48 * s);
+    ctx.lineTo(0.24 * s, -0.14 * s);
+    ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = detailColor;
+    ctx.lineWidth = Math.max(1.5, s * 0.015);
+    ctx.stroke();
+
+    ctx.fillStyle = JEEP_WINDOW_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(0.06 * s, -0.16 * s);
+    ctx.lineTo(-0.01 * s, -0.45 * s);
+    ctx.lineTo(0.24 * s, -0.45 * s);
+    ctx.lineTo(0.22 * s, -0.16 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+    ctx.beginPath();
+    ctx.moveTo(0.02 * s, -0.42 * s);
+    ctx.lineTo(0.09 * s, -0.42 * s);
+    ctx.lineTo(0.14 * s, -0.18 * s);
+    ctx.lineTo(0.08 * s, -0.18 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = detailColor;
+    ctx.fillRect(0.10 * s, -0.47 * s, 0.03 * s, 0.03 * s);
+
+    ctx.strokeStyle = detailColor;
+    ctx.lineWidth = Math.max(1, s * 0.012);
+    ctx.beginPath();
+    ctx.moveTo(0.09 * s, -0.17 * s);
+    ctx.lineTo(0.14 * s, -0.28 * s);
+    ctx.moveTo(0.19 * s, -0.17 * s);
+    ctx.lineTo(0.23 * s, -0.27 * s);
+    ctx.stroke();
+
+    // 9. Heavy Tubular Roll Cage
+    ctx.strokeStyle = detailColor;
+    ctx.lineWidth = Math.max(2.5, s * 0.028);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.beginPath();
+    ctx.moveTo(-0.02 * s, -0.48 * s);
+    ctx.lineTo(-0.22 * s, -0.48 * s);
+    ctx.lineTo(-0.46 * s, -0.06 * s);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-0.22 * s, -0.06 * s);
+    ctx.lineTo(-0.22 * s, -0.48 * s);
+    ctx.stroke();
+
+    ctx.lineWidth = Math.max(1.8, s * 0.02);
+    ctx.beginPath();
+    ctx.moveTo(-0.22 * s, -0.28 * s);
+    ctx.lineTo(-0.42 * s, -0.06 * s);
+    ctx.stroke();
+
+    // 10. Heavy Front Bumper & Winch / Bonk Push Plate
+    const pushNudge = bonkPulse * 0.035 * s;
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(0.44 * s, 0.06 * s, 0.08 * s, 0.09 * s, 0.02 * s);
+    ctx.fill();
+
+    ctx.fillStyle = detailColor;
+    this.roundedRectPath(0.46 * s + pushNudge, 0.04 * s, 0.16 * s, 0.10 * s, 0.03 * s);
+    ctx.fill();
+
+    ctx.fillStyle = '#C0D0D8';
+    this.roundedRectPath(0.48 * s + pushNudge, 0.055 * s, 0.12 * s, 0.025 * s, 0.01 * s);
+    ctx.fill();
+
+    ctx.fillStyle = hubColor;
+    this.roundedRectPath(0.50 * s + pushNudge, 0.075 * s, 0.06 * s, 0.04 * s, 0.015 * s);
+    ctx.fill();
+
+    // 11. Mounted Tailgate Spare Tire (at rear)
+    ctx.save();
+    ctx.translate(-0.54 * s, 0.03 * s);
+    ctx.fillStyle = detailColor;
+    ctx.fillRect(0.04 * s, -0.05 * s, 0.06 * s, 0.10 * s);
+    ctx.fillStyle = wheelColor;
+    this.roundedRectPath(-0.06 * s, -0.13 * s, 0.09 * s, 0.24 * s, 0.04 * s);
+    ctx.fill();
+    ctx.fillStyle = detailColor;
+    for (let k = -2; k <= 2; k++) {
+      ctx.fillRect(-0.07 * s, k * 0.04 * s - 0.01 * s, 0.03 * s, 0.02 * s);
+    }
+    ctx.fillStyle = hubColor;
+    this.roundedRectPath(-0.05 * s, -0.06 * s, 0.05 * s, 0.12 * s, 0.02 * s);
+    ctx.fill();
+    ctx.restore();
+
+    // 12. Off-Road Wheels (Front & Rear)
+    const effectivePhase = facing * wheelPhase;
+    for (const wx of [-0.28 * s, 0.28 * s]) {
+      ctx.fillStyle = wheelColor;
+      ctx.beginPath();
+      ctx.arc(wx, 0.22 * s, 0.19 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = detailColor;
+      for (let a = 0; a < 8; a++) {
+        const ang = (Math.PI * 2 * a) / 8 + effectivePhase * 0.5;
+        const tx = wx + Math.cos(ang) * 0.185 * s;
+        const ty = 0.22 * s + Math.sin(ang) * 0.185 * s;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 0.032 * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = hubColor;
+      ctx.beginPath();
+      ctx.arc(wx, 0.22 * s, 0.11 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = Math.max(1, s * 0.01);
+      ctx.beginPath();
+      ctx.arc(wx, 0.22 * s, 0.105 * s, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = detailColor;
+      ctx.lineWidth = Math.max(1.8, s * 0.018);
+      for (let i = 0; i < 5; i++) {
+        const ang = effectivePhase + (i * Math.PI * 2) / 5;
+        ctx.beginPath();
+        ctx.moveTo(wx, 0.22 * s);
+        ctx.lineTo(wx + Math.cos(ang) * 0.10 * s, 0.22 * s + Math.sin(ang) * 0.10 * s);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = detailColor;
+      ctx.beginPath();
+      ctx.arc(wx, 0.22 * s, 0.04 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(wx - 0.01 * s, 0.22 * s - 0.01 * s, 0.012 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.restore();
   }
 
@@ -3048,42 +3298,364 @@ export class Renderer {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(facing >= 0 ? 1 : -1, 1);
-    for (const [wx, wr] of [[-0.30, 0.20], [0.29, 0.16]] as const) {
-      ctx.fillStyle = BACKHOE_WHEEL_COLOR;
-      ctx.beginPath();
-      ctx.arc(wx * s, 0.23 * s, wr * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = BACKHOE_WHEEL_HUB;
-      ctx.beginPath();
-      ctx.arc(wx * s, 0.23 * s, wr * s * 0.38, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = BACKHOE_BODY_DARK;
-      ctx.lineWidth = Math.max(1, s * 0.012);
-      ctx.beginPath();
-      ctx.moveTo(wx * s, 0.23 * s);
-      ctx.lineTo(wx * s + Math.cos(wheelPhase) * wr * s * 0.28, 0.23 * s + Math.sin(wheelPhase) * wr * s * 0.28);
-      ctx.stroke();
-    }
-    ctx.fillStyle = BACKHOE_BODY_COLOR;
-    this.roundedRectPath(-0.48 * s, -0.08 * s, 0.88 * s, 0.27 * s, 0.05 * s);
-    ctx.fill();
-    ctx.fillStyle = BACKHOE_CAB_COLOR;
-    this.roundedRectPath(-0.12 * s, -0.36 * s, 0.34 * s, 0.30 * s, 0.05 * s);
-    ctx.fill();
-    ctx.fillStyle = BACKHOE_WINDOW_COLOR;
-    this.roundedRectPath(-0.07 * s, -0.31 * s, 0.23 * s, 0.18 * s, 0.03 * s);
-    ctx.fill();
-    ctx.fillStyle = BACKHOE_BODY_DARK;
-    this.roundedRectPath(0.36 * s, -0.03 * s, 0.30 * s, 0.07 * s, 0.025 * s);
-    ctx.fill();
-    ctx.fillStyle = BACKHOE_BUCKET_COLOR;
+    const effectivePhase = facing * wheelPhase;
+
+    const bodyColor = '#FFB000';
+    const darkBody = '#1E2229';
+    const highlightBody = '#FFD040';
+    const cabColor = '#FFA000';
+    const windowColor = 'rgba(195, 230, 255, 0.85)';
+    const wheelColor = '#1E2229';
+    const hubColor = '#FFB000';
+    const bucketColor = '#373D45';
+    const bucketDark = '#212529';
+
+    // 1. Black Fender Flares
+    ctx.fillStyle = darkBody;
     ctx.beginPath();
-    ctx.moveTo(0.59 * s, -0.12 * s);
-    ctx.lineTo(0.77 * s, -0.04 * s);
-    ctx.lineTo(0.69 * s, 0.10 * s);
-    ctx.lineTo(0.52 * s, 0.06 * s);
+    ctx.arc(-0.30 * s, 0.22 * s, 0.25 * s, Math.PI, 0);
+    ctx.lineTo(-0.04 * s, 0.12 * s);
+    ctx.lineTo(-0.55 * s, 0.12 * s);
     ctx.closePath();
     ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(0.29 * s, 0.22 * s, 0.19 * s, Math.PI, 0);
+    ctx.lineTo(0.48 * s, 0.12 * s);
+    ctx.lineTo(0.08 * s, 0.12 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Heavy Steel Underbody & Chassis Beam
+    ctx.fillStyle = darkBody;
+    this.roundedRectPath(-0.50 * s, 0.08 * s, 0.98 * s, 0.14 * s, 0.03 * s);
+    ctx.fill();
+
+    // Side Step Ladder to Cab
+    ctx.fillStyle = '#5A626C';
+    this.roundedRectPath(-0.10 * s, 0.12 * s, 0.16 * s, 0.08 * s, 0.015 * s);
+    ctx.fill();
+    ctx.fillStyle = darkBody;
+    ctx.fillRect(-0.08 * s, 0.14 * s, 0.12 * s, 0.015 * s);
+    ctx.fillRect(-0.08 * s, 0.17 * s, 0.12 * s, 0.015 * s);
+
+    // 3. Rear Vertical Outrigger Stabilizers
+    ctx.fillStyle = darkBody;
+    ctx.beginPath();
+    ctx.moveTo(-0.44 * s, -0.06 * s);
+    ctx.lineTo(-0.52 * s, 0.22 * s);
+    ctx.lineTo(-0.44 * s, 0.22 * s);
+    ctx.lineTo(-0.36 * s, -0.06 * s);
+    ctx.closePath();
+    ctx.fill();
+    this.roundedRectPath(-0.55 * s, 0.20 * s, 0.14 * s, 0.04 * s, 0.01 * s);
+    ctx.fill();
+
+    // 4. Rear Swivel Kingpost Vertical Carriage (JCB Chevron Stripes)
+    ctx.fillStyle = bodyColor;
+    this.roundedRectPath(-0.44 * s, -0.22 * s, 0.10 * s, 0.32 * s, 0.02 * s);
+    ctx.fill();
+    ctx.fillStyle = darkBody;
+    for (let c = 0; c < 3; c++) {
+      const cyPos = -0.18 * s + c * 0.08 * s;
+      ctx.beginPath();
+      ctx.moveTo(-0.44 * s, cyPos);
+      ctx.lineTo(-0.39 * s, cyPos + 0.03 * s);
+      ctx.lineTo(-0.44 * s, cyPos + 0.06 * s);
+      ctx.lineTo(-0.39 * s, cyPos + 0.03 * s);
+      ctx.lineTo(-0.34 * s, cyPos + 0.06 * s);
+      ctx.lineTo(-0.34 * s, cyPos + 0.03 * s);
+      ctx.lineTo(-0.39 * s, cyPos);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 5. Main Slanted Engine Hood (Front)
+    ctx.fillStyle = bodyColor;
+    this.roundedRectPath(0.04 * s, -0.16 * s, 0.44 * s, 0.28 * s, 0.05 * s);
+    ctx.fill();
+
+    ctx.fillStyle = highlightBody;
+    this.roundedRectPath(0.06 * s, -0.16 * s, 0.40 * s, 0.04 * s, 0.02 * s);
+    ctx.fill();
+
+    // Black Side Air Vents on Hood
+    ctx.fillStyle = darkBody;
+    for (let i = 0; i < 4; i++) {
+      ctx.fillRect(0.24 * s + i * 0.045 * s, -0.10 * s, 0.025 * s, 0.12 * s);
+    }
+
+    // Chrome Vertical Exhaust Pipe with Rain Flapper Cap
+    ctx.fillStyle = '#A0ABBA';
+    ctx.fillRect(0.18 * s, -0.38 * s, 0.035 * s, 0.24 * s);
+    this.roundedRectPath(0.16 * s, -0.41 * s, 0.075 * s, 0.035 * s, 0.01 * s);
+    ctx.fill();
+    ctx.fillStyle = darkBody;
+    ctx.fillRect(0.20 * s, -0.43 * s, 0.05 * s, 0.02 * s);
+
+    // 6. High-Visibility Full-Glass Cab
+    ctx.fillStyle = cabColor;
+    this.roundedRectPath(-0.34 * s, -0.46 * s, 0.44 * s, 0.40 * s, 0.06 * s);
+    ctx.fill();
+
+    ctx.fillStyle = highlightBody;
+    this.roundedRectPath(-0.32 * s, -0.46 * s, 0.40 * s, 0.04 * s, 0.02 * s);
+    ctx.fill();
+
+    // Panoramic Windows
+    ctx.fillStyle = windowColor;
+    this.roundedRectPath(-0.30 * s, -0.40 * s, 0.38 * s, 0.28 * s, 0.03 * s);
+    ctx.fill();
+
+    // Dual Diagonal Glare Reflections
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.beginPath();
+    ctx.moveTo(-0.24 * s, -0.38 * s);
+    ctx.lineTo(-0.16 * s, -0.38 * s);
+    ctx.lineTo(-0.22 * s, -0.14 * s);
+    ctx.lineTo(-0.28 * s, -0.14 * s);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-0.08 * s, -0.38 * s);
+    ctx.lineTo(-0.02 * s, -0.38 * s);
+    ctx.lineTo(-0.08 * s, -0.14 * s);
+    ctx.lineTo(-0.14 * s, -0.14 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Door Frame & Window Pillars
+    ctx.strokeStyle = darkBody;
+    ctx.lineWidth = Math.max(1.5, s * 0.015);
+    ctx.beginPath();
+    ctx.moveTo(-0.04 * s, -0.40 * s);
+    ctx.lineTo(-0.04 * s, -0.12 * s);
+    ctx.strokeRect(-0.20 * s, -0.40 * s, 0.24 * s, 0.28 * s);
+    ctx.stroke();
+
+    // Orange Safety Strobe Beacon on Roof
+    ctx.fillStyle = '#FF9800';
+    this.roundedRectPath(-0.02 * s, -0.51 * s, 0.05 * s, 0.05 * s, 0.015 * s);
+    ctx.fill();
+    ctx.fillStyle = '#FFF8D0';
+    ctx.fillRect(-0.01 * s, -0.50 * s, 0.03 * s, 0.02 * s);
+
+    // 7. Headlights & Spotlights
+    ctx.fillStyle = '#FFF8D0';
+    ctx.beginPath();
+    ctx.arc(0.46 * s, -0.06 * s, 0.04 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(0.45 * s, -0.075 * s, 0.014 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFF5C2';
+    ctx.beginPath();
+    ctx.arc(-0.32 * s, -0.40 * s, 0.03 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 8. Front Loader Arms & Bucket (Dynamic Pose)
+    const isCarrying = backhoe?.carrying ?? false;
+
+    const armEndX = isCarrying ? 0.56 * s : 0.52 * s;
+    const armEndY = isCarrying ? -0.36 * s : 0.04 * s;
+    const bucketTopY = isCarrying ? -0.56 * s : -0.16 * s;
+    const bucketBotY = isCarrying ? -0.30 * s : 0.10 * s;
+
+    // Main Triangulated Loader Arm
+    ctx.fillStyle = darkBody;
+    ctx.beginPath();
+    ctx.moveTo(0.06 * s, 0.04 * s);
+    ctx.lineTo(armEndX, armEndY);
+    ctx.lineTo(armEndX - 0.04 * s, armEndY + 0.08 * s);
+    ctx.lineTo(0.02 * s, 0.10 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.moveTo(0.08 * s, 0.05 * s);
+    ctx.lineTo(armEndX - 0.02 * s, armEndY + 0.02 * s);
+    ctx.lineTo(armEndX - 0.05 * s, armEndY + 0.06 * s);
+    ctx.lineTo(0.04 * s, 0.08 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Arm Frame Pivot Pins
+    for (const [px, py] of [[0.06 * s, 0.07 * s], [armEndX - 0.03 * s, armEndY + 0.04 * s]] as const) {
+      ctx.fillStyle = darkBody;
+      ctx.beginPath();
+      ctx.arc(px, py, 0.03 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#E0E8F0';
+      ctx.beginPath();
+      ctx.arc(px, py, 0.012 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Upper Hydraulic Ram for Front Loader Bucket
+    const cylStartX = 0.16 * s;
+    const cylStartY = isCarrying ? -0.04 * s : -0.12 * s;
+    const cylEndX = 0.40 * s;
+    const cylEndY = isCarrying ? -0.22 * s : -0.04 * s;
+
+    ctx.strokeStyle = darkBody;
+    ctx.lineWidth = Math.max(3, s * 0.03);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cylStartX, cylStartY);
+    ctx.lineTo((cylStartX + cylEndX) / 2, (cylStartY + cylEndY) / 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#E0E8F0';
+    ctx.lineWidth = Math.max(1.8, s * 0.018);
+    ctx.beginPath();
+    ctx.moveTo((cylStartX + cylEndX) / 2, (cylStartY + cylEndY) / 2);
+    ctx.lineTo(cylEndX, cylEndY);
+    ctx.stroke();
+
+    // Heavy Front Loader Scoop Bucket
+    ctx.fillStyle = bucketColor;
+    ctx.beginPath();
+    ctx.moveTo(0.46 * s, bucketTopY);
+    ctx.lineTo(0.72 * s, bucketTopY + 0.08 * s);
+    ctx.quadraticCurveTo(0.76 * s, bucketBotY - 0.02 * s, 0.64 * s, bucketBotY + 0.04 * s);
+    ctx.lineTo(0.44 * s, bucketBotY);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = bucketDark;
+    ctx.beginPath();
+    ctx.moveTo(0.50 * s, bucketTopY + 0.04 * s);
+    ctx.lineTo(0.68 * s, bucketTopY + 0.10 * s);
+    ctx.lineTo(0.60 * s, bucketBotY - 0.04 * s);
+    ctx.lineTo(0.46 * s, bucketBotY - 0.04 * s);
+    ctx.closePath();
+    ctx.fill();
+
+    // Digger Teeth on Front Bucket
+    ctx.fillStyle = '#E0E6ED';
+    for (let t = 0; t < 4; t++) {
+      const ty = bucketTopY + 0.06 * s + t * 0.05 * s;
+      ctx.beginPath();
+      ctx.moveTo(0.70 * s, ty);
+      ctx.lineTo(0.78 * s, ty + 0.015 * s);
+      ctx.lineTo(0.68 * s, ty + 0.03 * s);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 9. Rear Swivel Joint Pin (Where Excavator Arm attaches)
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.arc(-0.20 * s, -0.32 * s, 0.06 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = darkBody;
+    ctx.beginPath();
+    ctx.arc(-0.20 * s, -0.32 * s, 0.035 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#E0E8F0';
+    ctx.beginPath();
+    ctx.arc(-0.20 * s, -0.32 * s, 0.015 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 10. Off-Road Wheels
+    // Rear Big Wheel
+    {
+      const wx = -0.30 * s;
+      const wy = 0.23 * s;
+      const wr = 0.21 * s;
+
+      ctx.fillStyle = wheelColor;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Deep Off-Road Treads (10 lugs)
+      ctx.fillStyle = darkBody;
+      for (let a = 0; a < 10; a++) {
+        const ang = (Math.PI * 2 * a) / 10 + effectivePhase * 0.4;
+        const tx = wx + Math.cos(ang) * (wr - 0.005 * s);
+        const ty = wy + Math.sin(ang) * (wr - 0.005 * s);
+        ctx.beginPath();
+        ctx.arc(tx, ty, 0.035 * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = hubColor;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wr * 0.50, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = Math.max(1, s * 0.01);
+      ctx.beginPath();
+      ctx.arc(wx, wy, wr * 0.48, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = darkBody;
+      for (let i = 0; i < 6; i++) {
+        const ang = effectivePhase + (i * Math.PI * 2) / 6;
+        const bx = wx + Math.cos(ang) * wr * 0.32;
+        const by = wy + Math.sin(ang) * wr * 0.32;
+        ctx.beginPath();
+        ctx.arc(bx, by, 0.015 * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = darkBody;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wr * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(wx - 0.01 * s, wy - 0.01 * s, 0.012 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Front Medium Steering Wheel
+    {
+      const wx = 0.29 * s;
+      const wy = 0.23 * s;
+      const wr = 0.16 * s;
+
+      ctx.fillStyle = wheelColor;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = darkBody;
+      for (let a = 0; a < 8; a++) {
+        const ang = (Math.PI * 2 * a) / 8 + effectivePhase * 0.6;
+        const tx = wx + Math.cos(ang) * (wr - 0.005 * s);
+        const ty = wy + Math.sin(ang) * (wr - 0.005 * s);
+        ctx.beginPath();
+        ctx.arc(tx, ty, 0.03 * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = hubColor;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wr * 0.50, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = Math.max(1, s * 0.01);
+      ctx.beginPath();
+      ctx.arc(wx, wy, wr * 0.48, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = darkBody;
+      ctx.beginPath();
+      ctx.arc(wx, wy, wr * 0.20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(wx - 0.008 * s, wy - 0.008 * s, 0.01 * s, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.restore();
 
     if (backhoe) {
@@ -3114,6 +3686,7 @@ export class Renderer {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(facing >= 0 ? 1 : -1, 1);
+    const effectivePhase = facing * wheelPhase;
     for (const wx of [-0.36, -0.12, 0.14, 0.38]) {
       ctx.fillStyle = WHEELED_EXCAVATOR_WHEEL_COLOR;
       ctx.beginPath();
@@ -3127,17 +3700,37 @@ export class Renderer {
       ctx.lineWidth = Math.max(1, s * 0.012);
       ctx.beginPath();
       ctx.moveTo(wx * s, 0.27 * s);
-      ctx.lineTo(wx * s + Math.cos(wheelPhase) * 0.045 * s, 0.27 * s + Math.sin(wheelPhase) * 0.045 * s);
+      ctx.lineTo(wx * s + Math.cos(effectivePhase) * 0.045 * s, 0.27 * s + Math.sin(effectivePhase) * 0.045 * s);
       ctx.stroke();
     }
     ctx.fillStyle = WHEELED_EXCAVATOR_BODY_DARK;
     this.roundedRectPath(-0.48 * s, 0.08 * s, 0.96 * s, 0.15 * s, 0.04 * s);
     ctx.fill();
+    
+    // Dozer blade (stabilizer) on the undercarriage front
+    ctx.beginPath();
+    ctx.moveTo(0.44 * s, 0.18 * s);
+    ctx.lineTo(0.58 * s, 0.26 * s);
+    ctx.lineTo(0.55 * s, 0.30 * s);
+    ctx.lineTo(0.42 * s, 0.22 * s);
+    ctx.closePath();
+    ctx.fill();
     ctx.save();
     ctx.rotate((houseAngle + Math.PI / 2) * 0.08);
+    // Exhaust stack
+    ctx.fillStyle = WHEELED_EXCAVATOR_BODY_DARK;
+    ctx.fillRect(-0.30 * s, -0.32 * s, 0.04 * s, 0.14 * s);
+    ctx.fillRect(-0.33 * s, -0.36 * s, 0.10 * s, 0.04 * s);
+
     ctx.fillStyle = WHEELED_EXCAVATOR_BODY_COLOR;
     this.roundedRectPath(-0.37 * s, -0.18 * s, 0.70 * s, 0.27 * s, 0.06 * s);
     ctx.fill();
+
+    // Engine grills
+    ctx.fillStyle = WHEELED_EXCAVATOR_BODY_DARK;
+    for (let i = 0; i < 4; i++) {
+      ctx.fillRect(-0.25 * s + i * 0.04 * s, -0.10 * s, 0.02 * s, 0.12 * s);
+    }
     ctx.fillStyle = WHEELED_EXCAVATOR_CAB_COLOR;
     this.roundedRectPath(0.05 * s, -0.39 * s, 0.27 * s, 0.27 * s, 0.05 * s);
     ctx.fill();
@@ -3167,6 +3760,42 @@ export class Renderer {
     };
     drawSegment(sx, sy, ex, ey, s * 0.14, s * 0.10);
     drawSegment(ex, ey, bx, by, s * 0.10, s * 0.07);
+
+    // Parallel Hydraulic Cylinders on Boom and Stick
+    const drawHydraulicCylinder = (x1: number, y1: number, x2: number, y2: number, offset: number) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+
+      const p1x = x1 + nx * offset;
+      const p1y = y1 + ny * offset;
+      const p2x = x2 + nx * offset;
+      const p2y = y2 + ny * offset;
+
+      // Dark Cylinder Housing
+      ctx.strokeStyle = '#2B303A';
+      ctx.lineWidth = Math.max(2.5, s * 0.025);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(p1x, p1y);
+      ctx.lineTo(p1x + dx * 0.55, p1y + dy * 0.55);
+      ctx.stroke();
+
+      // Shiny Chrome Piston Rod
+      ctx.strokeStyle = '#E0E8F0';
+      ctx.lineWidth = Math.max(1.5, s * 0.015);
+      ctx.beginPath();
+      ctx.moveTo(p1x + dx * 0.45, p1y + dy * 0.45);
+      ctx.lineTo(p2x, p2y);
+      ctx.stroke();
+    };
+
+    // Boom Hydraulic Cylinder
+    drawHydraulicCylinder(sx, sy, ex, ey, -s * 0.07);
+    // Stick Hydraulic Cylinder
+    drawHydraulicCylinder(ex, ey, bx, by, -s * 0.05);
     for (const [jx, jy, jr] of [[sx, sy, 0.07], [ex, ey, 0.06]] as const) {
       ctx.fillStyle = darkColor;
       ctx.beginPath();
@@ -3219,6 +3848,29 @@ export class Renderer {
     this.drawPlaneShape(
       plane.x, plane.y, plane.size, plane.heading, plane.propAngle, plane.alpha, PURPLE_PLANE_PALETTE,
     );
+
+    // Magical stars on the fuselage
+    if (plane.alpha > 0) {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.globalAlpha = plane.alpha * 0.8;
+      ctx.translate(plane.x, plane.y);
+      ctx.rotate(plane.heading);
+      if (Math.cos(plane.heading) < 0) ctx.scale(1, -1);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      for (const [sx, sy, sr] of [[-0.10, 0.02, 0.025], [-0.28, 0.06, 0.015], [0.15, -0.06, 0.015]]) {
+        const ps = plane.size * sr;
+        ctx.beginPath();
+        ctx.moveTo(plane.size * sx, plane.size * sy - ps);
+        ctx.quadraticCurveTo(plane.size * sx, plane.size * sy, plane.size * sx + ps, plane.size * sy);
+        ctx.quadraticCurveTo(plane.size * sx, plane.size * sy, plane.size * sx, plane.size * sy + ps);
+        ctx.quadraticCurveTo(plane.size * sx, plane.size * sy, plane.size * sx - ps, plane.size * sy);
+        ctx.quadraticCurveTo(plane.size * sx, plane.size * sy, plane.size * sx, plane.size * sy - ps);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
     if (plane.sparklePulse <= 0) return;
     const ctx = this.ctx;
     ctx.save();
