@@ -15,3 +15,6 @@ yarn-error.log*
 
 # Claude Code scratch memory
 /memory
+
+# Playwright CLI snapshots
+.playwright-cli/

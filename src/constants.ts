@@ -133,6 +133,8 @@ export const HELICOPTER_ROTOR_SPEED = 32;    // rad/s (visual spin)
 export const HELICOPTER_GRAB_RADIUS_RATIO = 0.45; // grab hit radius relative to size
 
 export const HELICOPTER_BODY_COLOR = '#3A6EA5';
+export const HELICOPTER_BODY_DARK = '#28517D';   // belly / boom shading
+export const HELICOPTER_ACCENT_COLOR = '#FFD23C'; // trim stripe (matches the plane)
 export const HELICOPTER_WINDOW_COLOR = '#BFE3FF';
 export const HELICOPTER_ROTOR_COLOR = '#2A2F38';
 export const HELICOPTER_SKID_COLOR = '#2A2F38';
@@ -473,15 +475,17 @@ export const BACKHOE_STICK_RATIO = 0.72;
 export const BACKHOE_GRAB_DIST = 28;
 export const BACKHOE_RELEASE_DELAY = 0.28;
 export const BACKHOE_RETARGET_DELAY = 1.0;
-export const BACKHOE_BODY_COLOR = '#E9A62A';
-export const BACKHOE_BODY_DARK = '#B97412';
-export const BACKHOE_CAB_COLOR = '#F7BC42';
-export const BACKHOE_WINDOW_COLOR = '#BFE3FF';
-export const BACKHOE_ARM_COLOR = '#F0B23B';
-export const BACKHOE_ARM_DARK = '#A86B15';
-export const BACKHOE_BUCKET_COLOR = '#8E99A4';
-export const BACKHOE_WHEEL_COLOR = '#2A2F38';
-export const BACKHOE_WHEEL_HUB = '#D3D7DB';
+export const BACKHOE_BODY_COLOR = '#FFB000';   // JCB amber
+export const BACKHOE_BODY_DARK = '#B97412';    // shading / button outline
+export const BACKHOE_CAB_COLOR = '#FFA000';    // cab shell
+export const BACKHOE_WINDOW_COLOR = '#BFE3FF'; // glass (matches the others)
+export const BACKHOE_ARM_COLOR = '#F0B23B';    // rear digger boom / stick
+export const BACKHOE_ARM_DARK = '#A86B15';     // arm shading / outline
+export const BACKHOE_BUCKET_COLOR = '#8E99A4'; // steel buckets (front + rear)
+export const BACKHOE_BUCKET_DARK = '#6C757D';  // bucket edge / teeth shading
+export const BACKHOE_WHEEL_COLOR = '#2A2F38';  // tyres
+export const BACKHOE_WHEEL_HUB = '#FFB000';    // body-coloured hubs
+export const BACKHOE_DETAIL_COLOR = '#1E2229'; // chassis, fenders, panel lines
 
 // ── Wheeled excavator (autonomous balloon swing) ─────────────────────────────
 export const WHEELED_EXCAVATOR_LIFETIME = 30;
@@ -509,6 +513,7 @@ export const WHEELED_EXCAVATOR_ARM_DARK = '#AF6D17';
 export const WHEELED_EXCAVATOR_BUCKET_COLOR = '#8E99A4';
 export const WHEELED_EXCAVATOR_WHEEL_COLOR = '#253039';
 export const WHEELED_EXCAVATOR_WHEEL_HUB = '#D3D7DB';
+export const WHEELED_EXCAVATOR_DETAIL_COLOR = '#1E2229'; // chassis, panel lines
 
 // ── Purple skywriter plane ────────────────────────────────────────────────────
 export const PURPLE_PLANE_LIFETIME = 30;

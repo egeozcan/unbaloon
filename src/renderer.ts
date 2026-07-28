@@ -16,6 +16,8 @@ import {
   DART_COLOR,
   DART_TIP_COLOR,
   HELICOPTER_BODY_COLOR,
+  HELICOPTER_BODY_DARK,
+  HELICOPTER_ACCENT_COLOR,
   HELICOPTER_WINDOW_COLOR,
   HELICOPTER_ROTOR_COLOR,
   HELICOPTER_SKID_COLOR,
@@ -112,8 +114,10 @@ import {
   BACKHOE_ARM_COLOR,
   BACKHOE_ARM_DARK,
   BACKHOE_BUCKET_COLOR,
+  BACKHOE_BUCKET_DARK,
   BACKHOE_WHEEL_COLOR,
   BACKHOE_WHEEL_HUB,
+  BACKHOE_DETAIL_COLOR,
   WHEELED_EXCAVATOR_BODY_COLOR,
   WHEELED_EXCAVATOR_BODY_DARK,
   WHEELED_EXCAVATOR_CAB_COLOR,
@@ -123,6 +127,7 @@ import {
   WHEELED_EXCAVATOR_BUCKET_COLOR,
   WHEELED_EXCAVATOR_WHEEL_COLOR,
   WHEELED_EXCAVATOR_WHEEL_HUB,
+  WHEELED_EXCAVATOR_DETAIL_COLOR,
   PURPLE_PLANE_BODY_COLOR,
   PURPLE_PLANE_WING_COLOR,
   PURPLE_PLANE_WINDOW_COLOR,
@@ -811,7 +816,7 @@ export class Renderer {
     ctx.globalAlpha = alpha;
     ctx.translate(cx, cy);
 
-    // Tail boom
+    // Tail boom with a shaded underside.
     ctx.fillStyle = HELICOPTER_BODY_COLOR;
     ctx.beginPath();
     ctx.moveTo(-s * 0.08, -s * 0.07);
@@ -820,12 +825,28 @@ export class Renderer {
     ctx.lineTo(-s * 0.08, s * 0.09);
     ctx.closePath();
     ctx.fill();
+    ctx.fillStyle = HELICOPTER_BODY_DARK;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.08, s * 0.045);
+    ctx.lineTo(-s * 0.46, s * 0.015);
+    ctx.lineTo(-s * 0.46, s * 0.04);
+    ctx.lineTo(-s * 0.08, s * 0.09);
+    ctx.closePath();
+    ctx.fill();
 
-    // Tail fin (vertical stabiliser)
+    // Tail fin (vertical stabiliser) with an accent tip.
+    ctx.fillStyle = HELICOPTER_BODY_COLOR;
     ctx.beginPath();
     ctx.moveTo(-s * 0.4, -s * 0.02);
     ctx.lineTo(-s * 0.5, -s * 0.15);
     ctx.lineTo(-s * 0.42, s * 0.04);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = HELICOPTER_ACCENT_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.455, -s * 0.09);
+    ctx.lineTo(-s * 0.5, -s * 0.15);
+    ctx.lineTo(-s * 0.475, -s * 0.045);
     ctx.closePath();
     ctx.fill();
 
@@ -842,16 +863,38 @@ export class Renderer {
     ctx.lineTo(s * 0.16, s * 0.3);
     ctx.stroke();
 
-    // Cabin body
+    // Cabin body with a shaded belly and a top sheen for roundness.
     ctx.beginPath();
     ctx.ellipse(s * 0.05, 0, s * 0.27, s * 0.2, 0, 0, Math.PI * 2);
     ctx.fillStyle = HELICOPTER_BODY_COLOR;
     ctx.fill();
+    ctx.fillStyle = HELICOPTER_BODY_DARK;
+    ctx.beginPath();
+    ctx.ellipse(s * 0.05, 0, s * 0.27, s * 0.2, 0, Math.PI * 0.18, Math.PI * 0.82);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = this.shadeColor(HELICOPTER_BODY_COLOR, 0.28);
+    ctx.beginPath();
+    ctx.ellipse(s * 0.02, -s * 0.12, s * 0.16, s * 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Cockpit window
+    // Accent cheat-line running from the cabin down the boom.
+    ctx.strokeStyle = HELICOPTER_ACCENT_COLOR;
+    ctx.lineWidth = Math.max(2, s * 0.026);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(s * 0.02, s * 0.026);
+    ctx.lineTo(-s * 0.44, s * 0.0);
+    ctx.stroke();
+
+    // Cockpit window with a glare glint.
     ctx.beginPath();
     ctx.ellipse(s * 0.15, -s * 0.01, s * 0.1, s * 0.1, 0, 0, Math.PI * 2);
     ctx.fillStyle = HELICOPTER_WINDOW_COLOR;
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.beginPath();
+    ctx.ellipse(s * 0.12, -s * 0.045, s * 0.032, s * 0.02, -0.5, 0, Math.PI * 2);
     ctx.fill();
 
     // Mast
@@ -1252,28 +1295,102 @@ export class Renderer {
     ctx.closePath();
   }
 
-  // A wheel with a hub and a few rotating spokes (trackPhase drives the spin).
-  private drawTrackWheel(wx: number, wy: number, wr: number, trackPhase: number): void {
+  // Shared toy tyre used by every wheeled vehicle: dark rubber with tread lugs
+  // riding the rim, a coloured hub with a bright ring, rotating spokes, and a
+  // centre cap with a glint. `phase` drives the spin (pass facing * wheelPhase
+  // when the rig is mirrored so treads still roll the right way).
+  private drawToyWheel(
+    wx: number,
+    wy: number,
+    wr: number,
+    phase: number,
+    tire: string,
+    hub: string,
+    detail: string,
+  ): void {
     const ctx = this.ctx;
-    ctx.fillStyle = BULLDOZER_WHEEL_COLOR;
+    // Tyre.
+    ctx.fillStyle = tire;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+    ctx.fill();
+    // Tread lugs around the rim.
+    ctx.fillStyle = detail;
+    for (let a = 0; a < 8; a++) {
+      const ang = (Math.PI * 2 * a) / 8 + phase * 0.5;
+      const tx = wx + Math.cos(ang) * wr * 0.97;
+      const ty = wy + Math.sin(ang) * wr * 0.97;
+      ctx.beginPath();
+      ctx.arc(tx, ty, wr * 0.17, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Hub with a bright trim ring.
+    ctx.fillStyle = hub;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.56, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = Math.max(1, wr * 0.055);
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.53, 0, Math.PI * 2);
+    ctx.stroke();
+    // Spokes that turn with the wheel.
+    ctx.strokeStyle = detail;
+    ctx.lineWidth = Math.max(1.5, wr * 0.095);
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 5; k++) {
+      const a = phase + (k * Math.PI * 2) / 5;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx + Math.cos(a) * wr * 0.51, wy + Math.sin(a) * wr * 0.51);
+      ctx.stroke();
+    }
+    // Centre cap + glint.
+    ctx.fillStyle = detail;
+    ctx.beginPath();
+    ctx.arc(wx, wy, wr * 0.21, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(wx - wr * 0.06, wy - wr * 0.06, wr * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Shared track sprocket used by the crawler vehicles (bulldozer, excavator):
+  // a dark roller with rotating spokes, a body-coloured hub and a glint.
+  private drawSprocketWheel(
+    wx: number,
+    wy: number,
+    wr: number,
+    phase: number,
+    roller: string,
+    spoke: string,
+    hub: string,
+  ): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = roller;
     ctx.beginPath();
     ctx.arc(wx, wy, wr, 0, Math.PI * 2);
     ctx.fill();
     // Spokes.
-    ctx.strokeStyle = BULLDOZER_BODY_DARK;
+    ctx.strokeStyle = spoke;
     ctx.lineWidth = Math.max(1.5, wr * 0.18);
     ctx.lineCap = 'round';
     for (let k = 0; k < 4; k++) {
-      const a = trackPhase + (k * Math.PI) / 2;
+      const a = phase + (k * Math.PI) / 2;
       ctx.beginPath();
       ctx.moveTo(wx, wy);
-      ctx.lineTo(wx + Math.cos(a) * wr * 0.82, wy + Math.sin(a) * wr * 0.82);
+      ctx.lineTo(wx + Math.cos(a) * wr * 0.8, wy + Math.sin(a) * wr * 0.8);
       ctx.stroke();
     }
-    // Hub.
-    ctx.fillStyle = BULLDOZER_BODY_COLOR;
+    // Hub + glint.
+    ctx.fillStyle = hub;
     ctx.beginPath();
     ctx.arc(wx, wy, wr * 0.32, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.beginPath();
+    ctx.arc(wx - wr * 0.09, wy - wr * 0.09, wr * 0.09, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -1327,17 +1444,32 @@ export class Renderer {
       ctx.lineTo(lx, trackBot - s * 0.05);
       ctx.stroke();
     }
-    this.drawTrackWheel(-0.23 * s, trackCy, 0.115 * s, trackPhase);
-    this.drawTrackWheel(0.15 * s, trackCy, 0.10 * s, trackPhase);
+    this.drawSprocketWheel(-0.23 * s, trackCy, 0.115 * s, trackPhase, BULLDOZER_WHEEL_COLOR, BULLDOZER_BODY_DARK, BULLDOZER_BODY_COLOR);
+    this.drawSprocketWheel(0.15 * s, trackCy, 0.10 * s, trackPhase, BULLDOZER_WHEEL_COLOR, BULLDOZER_BODY_DARK, BULLDOZER_BODY_COLOR);
 
     // ── Chassis body ──
     ctx.fillStyle = BULLDOZER_BODY_COLOR;
     this.roundedRectPath(-0.30 * s, -0.03 * s, 0.48 * s, 0.17 * s, 0.04 * s);
     ctx.fill();
-    // Lower shading band.
+    // Top sheen and lower shading band for roundness (matches the other rigs).
+    ctx.fillStyle = this.shadeColor(BULLDOZER_BODY_COLOR, 0.22);
+    this.roundedRectPath(-0.28 * s, -0.03 * s, 0.42 * s, 0.035 * s, 0.017 * s);
+    ctx.fill();
     ctx.fillStyle = BULLDOZER_BODY_DARK;
     this.roundedRectPath(-0.30 * s, 0.085 * s, 0.48 * s, 0.06 * s, 0.03 * s);
     ctx.fill();
+
+    // Engine grille louvres on the hood side.
+    ctx.strokeStyle = BULLDOZER_BODY_DARK;
+    ctx.lineWidth = Math.max(1, s * 0.012);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let k = 0; k < 3; k++) {
+      const vx = 0.02 * s + k * 0.045 * s;
+      ctx.moveTo(vx, 0.005 * s);
+      ctx.lineTo(vx, 0.07 * s);
+    }
+    ctx.stroke();
 
     // ── Operator cab (slanted windshield) ──
     ctx.fillStyle = BULLDOZER_CAB_COLOR;
@@ -1357,6 +1489,15 @@ export class Renderer {
     ctx.lineTo(-0.185 * s, -0.205 * s);
     ctx.lineTo(-0.095 * s, -0.205 * s);
     ctx.lineTo(-0.08 * s, -0.055 * s);
+    ctx.closePath();
+    ctx.fill();
+    // Diagonal glare glint on the glass (matches the other cabs).
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+    ctx.beginPath();
+    ctx.moveTo(-0.19 * s, -0.19 * s);
+    ctx.lineTo(-0.14 * s, -0.19 * s);
+    ctx.lineTo(-0.19 * s, -0.07 * s);
+    ctx.lineTo(-0.225 * s, -0.07 * s);
     ctx.closePath();
     ctx.fill();
     // ROPS roof post hint.
@@ -1479,41 +1620,9 @@ export class Renderer {
     this.drawTractorBody(tractor.x, tractor.y, s, tractor.wheelPhase, alpha);
   }
 
-  // A clean tractor tyre: dark rubber, a yellow hub with a few spokes, hub cap.
+  // A tractor tyre: the shared toy wheel with dark rubber and sunny yellow hubs.
   private drawTractorWheel(wx: number, wy: number, wr: number, wheelPhase: number): void {
-    const ctx = this.ctx;
-    // Tyre.
-    ctx.fillStyle = TRACTOR_WHEEL_COLOR;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
-    ctx.fill();
-    // Soft tyre-wall ring for a hint of depth (no busy tread).
-    ctx.strokeStyle = this.shadeColor(TRACTOR_WHEEL_COLOR, 0.22);
-    ctx.lineWidth = wr * 0.09;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.80, 0, Math.PI * 2);
-    ctx.stroke();
-    // Yellow hub.
-    ctx.fillStyle = TRACTOR_WHEEL_HUB;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.50, 0, Math.PI * 2);
-    ctx.fill();
-    // A few clean spokes (turn with the wheel).
-    ctx.strokeStyle = this.shadeColor(TRACTOR_WHEEL_HUB, -0.2);
-    ctx.lineWidth = Math.max(1.5, wr * 0.1);
-    ctx.lineCap = 'round';
-    for (let k = 0; k < 5; k++) {
-      const a = wheelPhase + (k * Math.PI * 2) / 5;
-      ctx.beginPath();
-      ctx.moveTo(wx, wy);
-      ctx.lineTo(wx + Math.cos(a) * wr * 0.45, wy + Math.sin(a) * wr * 0.45);
-      ctx.stroke();
-    }
-    // Hub cap.
-    ctx.fillStyle = TRACTOR_DETAIL_COLOR;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.15, 0, Math.PI * 2);
-    ctx.fill();
+    this.drawToyWheel(wx, wy, wr, wheelPhase, TRACTOR_WHEEL_COLOR, TRACTOR_WHEEL_HUB, TRACTOR_DETAIL_COLOR);
   }
 
   // Side-view tractor drawn nose-to-the-right around (cx, cy). The tractor always
@@ -1936,25 +2045,7 @@ export class Renderer {
   }
 
   private drawExcavatorWheel(wx: number, wy: number, wr: number, phase: number): void {
-    const ctx = this.ctx;
-    ctx.fillStyle = EXCAVATOR_WHEEL_COLOR;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = EXCAVATOR_BODY_DARK;
-    ctx.lineWidth = Math.max(1.5, wr * 0.2);
-    ctx.lineCap = 'round';
-    for (let k = 0; k < 4; k++) {
-      const a = phase + (k * Math.PI) / 2;
-      ctx.beginPath();
-      ctx.moveTo(wx, wy);
-      ctx.lineTo(wx + Math.cos(a) * wr * 0.78, wy + Math.sin(a) * wr * 0.78);
-      ctx.stroke();
-    }
-    ctx.fillStyle = EXCAVATOR_BODY_COLOR;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.3, 0, Math.PI * 2);
-    ctx.fill();
+    this.drawSprocketWheel(wx, wy, wr, phase, EXCAVATOR_WHEEL_COLOR, EXCAVATOR_BODY_DARK, EXCAVATOR_BODY_COLOR);
   }
 
   // Dark stadium track frame with drive sprockets, idler and tread lugs.
@@ -2262,38 +2353,9 @@ export class Renderer {
     this.drawFiretruckMonitor(cx + FIRETRUCK_NOZZLE_DX * s, cy + FIRETRUCK_NOZZLE_DY * s, s, aimAngle);
   }
 
-  // A clean fire-truck tyre: dark rubber, a silver hub with a few spokes, hub cap.
+  // A fire-truck tyre: the shared toy wheel with dark rubber and silver hubs.
   private drawFiretruckWheel(wx: number, wy: number, wr: number, wheelPhase: number): void {
-    const ctx = this.ctx;
-    ctx.fillStyle = FIRETRUCK_WHEEL_COLOR;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = this.shadeColor(FIRETRUCK_WHEEL_COLOR, 0.22);
-    ctx.lineWidth = wr * 0.09;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.8, 0, Math.PI * 2);
-    ctx.stroke();
-    // Silver hub.
-    ctx.fillStyle = FIRETRUCK_WHEEL_HUB;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.5, 0, Math.PI * 2);
-    ctx.fill();
-    // A few spokes that turn with the wheel.
-    ctx.strokeStyle = this.shadeColor(FIRETRUCK_WHEEL_HUB, -0.25);
-    ctx.lineWidth = Math.max(1.5, wr * 0.1);
-    ctx.lineCap = 'round';
-    for (let k = 0; k < 5; k++) {
-      const a = wheelPhase + (k * Math.PI * 2) / 5;
-      ctx.beginPath();
-      ctx.moveTo(wx, wy);
-      ctx.lineTo(wx + Math.cos(a) * wr * 0.42, wy + Math.sin(a) * wr * 0.42);
-      ctx.stroke();
-    }
-    ctx.fillStyle = FIRETRUCK_DETAIL_COLOR;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.14, 0, Math.PI * 2);
-    ctx.fill();
+    this.drawToyWheel(wx, wy, wr, wheelPhase, FIRETRUCK_WHEEL_COLOR, FIRETRUCK_WHEEL_HUB, FIRETRUCK_DETAIL_COLOR);
   }
 
   // Side-view fire truck drawn nose-to-the-right around (cx, cy). Always faces right,
@@ -2577,40 +2639,13 @@ export class Renderer {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(facing >= 0 ? 1 : -1, 1); // mirror horizontally when facing left
-    this.drawWheelLoaderShape(s, wheelPhase);
+    this.drawWheelLoaderShape(s, facing * wheelPhase); // counter-rotate so treads still roll forward
     ctx.restore();
   }
 
-  // A chunky loader tyre: dark rubber, a silver hub with spokes, a hub cap.
+  // A chunky loader tyre: the shared toy wheel with dark rubber and silver hubs.
   private drawWheelLoaderWheel(wx: number, wy: number, wr: number, wheelPhase: number): void {
-    const ctx = this.ctx;
-    ctx.fillStyle = WHEELLOADER_WHEEL_COLOR;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = this.shadeColor(WHEELLOADER_WHEEL_COLOR, 0.22);
-    ctx.lineWidth = wr * 0.09;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.82, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = WHEELLOADER_WHEEL_HUB;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.46, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = this.shadeColor(WHEELLOADER_WHEEL_HUB, -0.25);
-    ctx.lineWidth = Math.max(1.5, wr * 0.1);
-    ctx.lineCap = 'round';
-    for (let k = 0; k < 5; k++) {
-      const a = wheelPhase + (k * Math.PI * 2) / 5;
-      ctx.beginPath();
-      ctx.moveTo(wx, wy);
-      ctx.lineTo(wx + Math.cos(a) * wr * 0.38, wy + Math.sin(a) * wr * 0.38);
-      ctx.stroke();
-    }
-    ctx.fillStyle = WHEELLOADER_DETAIL_COLOR;
-    ctx.beginPath();
-    ctx.arc(wx, wy, wr * 0.13, 0, Math.PI * 2);
-    ctx.fill();
+    this.drawToyWheel(wx, wy, wr, wheelPhase, WHEELLOADER_WHEEL_COLOR, WHEELLOADER_WHEEL_HUB, WHEELLOADER_DETAIL_COLOR);
   }
 
   // The loader body around the origin, facing right: two big tyres, a rear engine hood,
@@ -3234,51 +3269,7 @@ export class Renderer {
     // 12. Off-Road Wheels (Front & Rear)
     const effectivePhase = facing * wheelPhase;
     for (const wx of [-0.28 * s, 0.28 * s]) {
-      ctx.fillStyle = wheelColor;
-      ctx.beginPath();
-      ctx.arc(wx, 0.22 * s, 0.19 * s, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = detailColor;
-      for (let a = 0; a < 8; a++) {
-        const ang = (Math.PI * 2 * a) / 8 + effectivePhase * 0.5;
-        const tx = wx + Math.cos(ang) * 0.185 * s;
-        const ty = 0.22 * s + Math.sin(ang) * 0.185 * s;
-        ctx.beginPath();
-        ctx.arc(tx, ty, 0.032 * s, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.fillStyle = hubColor;
-      ctx.beginPath();
-      ctx.arc(wx, 0.22 * s, 0.11 * s, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = Math.max(1, s * 0.01);
-      ctx.beginPath();
-      ctx.arc(wx, 0.22 * s, 0.105 * s, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.strokeStyle = detailColor;
-      ctx.lineWidth = Math.max(1.8, s * 0.018);
-      for (let i = 0; i < 5; i++) {
-        const ang = effectivePhase + (i * Math.PI * 2) / 5;
-        ctx.beginPath();
-        ctx.moveTo(wx, 0.22 * s);
-        ctx.lineTo(wx + Math.cos(ang) * 0.10 * s, 0.22 * s + Math.sin(ang) * 0.10 * s);
-        ctx.stroke();
-      }
-
-      ctx.fillStyle = detailColor;
-      ctx.beginPath();
-      ctx.arc(wx, 0.22 * s, 0.04 * s, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#FFFFFF';
-      ctx.beginPath();
-      ctx.arc(wx - 0.01 * s, 0.22 * s - 0.01 * s, 0.012 * s, 0, Math.PI * 2);
-      ctx.fill();
+      this.drawToyWheel(wx, 0.22 * s, 0.19 * s, effectivePhase, wheelColor, hubColor, detailColor);
     }
 
     ctx.restore();
@@ -3300,15 +3291,15 @@ export class Renderer {
     ctx.scale(facing >= 0 ? 1 : -1, 1);
     const effectivePhase = facing * wheelPhase;
 
-    const bodyColor = '#FFB000';
-    const darkBody = '#1E2229';
-    const highlightBody = '#FFD040';
-    const cabColor = '#FFA000';
-    const windowColor = 'rgba(195, 230, 255, 0.85)';
-    const wheelColor = '#1E2229';
-    const hubColor = '#FFB000';
-    const bucketColor = '#373D45';
-    const bucketDark = '#212529';
+    const bodyColor = BACKHOE_BODY_COLOR;
+    const darkBody = BACKHOE_DETAIL_COLOR;
+    const highlightBody = this.shadeColor(BACKHOE_BODY_COLOR, 0.28);
+    const cabColor = BACKHOE_CAB_COLOR;
+    const windowColor = BACKHOE_WINDOW_COLOR;
+    const wheelColor = BACKHOE_WHEEL_COLOR;
+    const hubColor = BACKHOE_WHEEL_HUB;
+    const bucketColor = BACKHOE_BUCKET_COLOR;
+    const bucketDark = BACKHOE_BUCKET_DARK;
 
     // 1. Black Fender Flares
     ctx.fillStyle = darkBody;
@@ -3560,101 +3551,9 @@ export class Renderer {
     ctx.arc(-0.20 * s, -0.32 * s, 0.015 * s, 0, Math.PI * 2);
     ctx.fill();
 
-    // 10. Off-Road Wheels
-    // Rear Big Wheel
-    {
-      const wx = -0.30 * s;
-      const wy = 0.23 * s;
-      const wr = 0.21 * s;
-
-      ctx.fillStyle = wheelColor;
-      ctx.beginPath();
-      ctx.arc(wx, wy, wr, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Deep Off-Road Treads (10 lugs)
-      ctx.fillStyle = darkBody;
-      for (let a = 0; a < 10; a++) {
-        const ang = (Math.PI * 2 * a) / 10 + effectivePhase * 0.4;
-        const tx = wx + Math.cos(ang) * (wr - 0.005 * s);
-        const ty = wy + Math.sin(ang) * (wr - 0.005 * s);
-        ctx.beginPath();
-        ctx.arc(tx, ty, 0.035 * s, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.fillStyle = hubColor;
-      ctx.beginPath();
-      ctx.arc(wx, wy, wr * 0.50, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = Math.max(1, s * 0.01);
-      ctx.beginPath();
-      ctx.arc(wx, wy, wr * 0.48, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.fillStyle = darkBody;
-      for (let i = 0; i < 6; i++) {
-        const ang = effectivePhase + (i * Math.PI * 2) / 6;
-        const bx = wx + Math.cos(ang) * wr * 0.32;
-        const by = wy + Math.sin(ang) * wr * 0.32;
-        ctx.beginPath();
-        ctx.arc(bx, by, 0.015 * s, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.fillStyle = darkBody;
-      ctx.beginPath();
-      ctx.arc(wx, wy, wr * 0.18, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#FFFFFF';
-      ctx.beginPath();
-      ctx.arc(wx - 0.01 * s, wy - 0.01 * s, 0.012 * s, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Front Medium Steering Wheel
-    {
-      const wx = 0.29 * s;
-      const wy = 0.23 * s;
-      const wr = 0.16 * s;
-
-      ctx.fillStyle = wheelColor;
-      ctx.beginPath();
-      ctx.arc(wx, wy, wr, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = darkBody;
-      for (let a = 0; a < 8; a++) {
-        const ang = (Math.PI * 2 * a) / 8 + effectivePhase * 0.6;
-        const tx = wx + Math.cos(ang) * (wr - 0.005 * s);
-        const ty = wy + Math.sin(ang) * (wr - 0.005 * s);
-        ctx.beginPath();
-        ctx.arc(tx, ty, 0.03 * s, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.fillStyle = hubColor;
-      ctx.beginPath();
-      ctx.arc(wx, wy, wr * 0.50, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = Math.max(1, s * 0.01);
-      ctx.beginPath();
-      ctx.arc(wx, wy, wr * 0.48, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.fillStyle = darkBody;
-      ctx.beginPath();
-      ctx.arc(wx, wy, wr * 0.20, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#FFFFFF';
-      ctx.beginPath();
-      ctx.arc(wx - 0.008 * s, wy - 0.008 * s, 0.01 * s, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // 10. Off-Road Wheels: big rear drive wheel, medium front steering wheel.
+    this.drawToyWheel(-0.30 * s, 0.23 * s, 0.21 * s, effectivePhase, wheelColor, hubColor, darkBody);
+    this.drawToyWheel(0.29 * s, 0.23 * s, 0.16 * s, effectivePhase, wheelColor, hubColor, darkBody);
 
     ctx.restore();
 
@@ -3687,27 +3586,26 @@ export class Renderer {
     ctx.translate(cx, cy);
     ctx.scale(facing >= 0 ? 1 : -1, 1);
     const effectivePhase = facing * wheelPhase;
+    const detail = WHEELED_EXCAVATOR_DETAIL_COLOR;
+
+    // Four road wheels (shared toy tyre with silver hubs).
     for (const wx of [-0.36, -0.12, 0.14, 0.38]) {
-      ctx.fillStyle = WHEELED_EXCAVATOR_WHEEL_COLOR;
-      ctx.beginPath();
-      ctx.arc(wx * s, 0.27 * s, 0.145 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = WHEELED_EXCAVATOR_WHEEL_HUB;
-      ctx.beginPath();
-      ctx.arc(wx * s, 0.27 * s, 0.055 * s, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = WHEELED_EXCAVATOR_BODY_DARK;
-      ctx.lineWidth = Math.max(1, s * 0.012);
-      ctx.beginPath();
-      ctx.moveTo(wx * s, 0.27 * s);
-      ctx.lineTo(wx * s + Math.cos(effectivePhase) * 0.045 * s, 0.27 * s + Math.sin(effectivePhase) * 0.045 * s);
-      ctx.stroke();
+      this.drawToyWheel(
+        wx * s, 0.27 * s, 0.145 * s, effectivePhase,
+        WHEELED_EXCAVATOR_WHEEL_COLOR, WHEELED_EXCAVATOR_WHEEL_HUB, detail,
+      );
     }
-    ctx.fillStyle = WHEELED_EXCAVATOR_BODY_DARK;
+
+    // Chassis deck over the wheels, with a teal trim line.
+    ctx.fillStyle = detail;
     this.roundedRectPath(-0.48 * s, 0.08 * s, 0.96 * s, 0.15 * s, 0.04 * s);
     ctx.fill();
-    
-    // Dozer blade (stabilizer) on the undercarriage front
+    ctx.fillStyle = WHEELED_EXCAVATOR_BODY_DARK;
+    this.roundedRectPath(-0.46 * s, 0.095 * s, 0.92 * s, 0.03 * s, 0.015 * s);
+    ctx.fill();
+
+    // Dozer blade (stabilizer) on the undercarriage front.
+    ctx.fillStyle = detail;
     ctx.beginPath();
     ctx.moveTo(0.44 * s, 0.18 * s);
     ctx.lineTo(0.58 * s, 0.26 * s);
@@ -3715,28 +3613,81 @@ export class Renderer {
     ctx.lineTo(0.42 * s, 0.22 * s);
     ctx.closePath();
     ctx.fill();
+
     ctx.save();
     ctx.rotate((houseAngle + Math.PI / 2) * 0.08);
-    // Exhaust stack
-    ctx.fillStyle = WHEELED_EXCAVATOR_BODY_DARK;
+
+    // Exhaust stack rising behind the house.
+    ctx.fillStyle = detail;
     ctx.fillRect(-0.30 * s, -0.32 * s, 0.04 * s, 0.14 * s);
     ctx.fillRect(-0.33 * s, -0.36 * s, 0.10 * s, 0.04 * s);
 
+    // Counterweight block at the back of the house.
+    ctx.fillStyle = WHEELED_EXCAVATOR_BODY_DARK;
+    this.roundedRectPath(-0.43 * s, -0.14 * s, 0.14 * s, 0.22 * s, 0.03 * s);
+    ctx.fill();
+
+    // House body with a top sheen and a lower shade for roundness.
     ctx.fillStyle = WHEELED_EXCAVATOR_BODY_COLOR;
     this.roundedRectPath(-0.37 * s, -0.18 * s, 0.70 * s, 0.27 * s, 0.06 * s);
     ctx.fill();
-
-    // Engine grills
+    ctx.fillStyle = this.shadeColor(WHEELED_EXCAVATOR_BODY_COLOR, 0.25);
+    this.roundedRectPath(-0.35 * s, -0.18 * s, 0.42 * s, 0.04 * s, 0.02 * s);
+    ctx.fill();
     ctx.fillStyle = WHEELED_EXCAVATOR_BODY_DARK;
+    this.roundedRectPath(-0.37 * s, 0.035 * s, 0.70 * s, 0.055 * s, 0.025 * s);
+    ctx.fill();
+
+    // Engine grille louvres.
+    ctx.fillStyle = detail;
     for (let i = 0; i < 4; i++) {
       ctx.fillRect(-0.25 * s + i * 0.04 * s, -0.10 * s, 0.02 * s, 0.12 * s);
     }
+
+    // Handrail along the house top (walkway to the cab).
+    ctx.strokeStyle = detail;
+    ctx.lineWidth = Math.max(1, s * 0.014);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-0.33 * s, -0.26 * s);
+    ctx.lineTo(-0.02 * s, -0.26 * s);
+    ctx.moveTo(-0.30 * s, -0.26 * s);
+    ctx.lineTo(-0.30 * s, -0.18 * s);
+    ctx.moveTo(-0.16 * s, -0.26 * s);
+    ctx.lineTo(-0.16 * s, -0.18 * s);
+    ctx.moveTo(-0.04 * s, -0.26 * s);
+    ctx.lineTo(-0.04 * s, -0.18 * s);
+    ctx.stroke();
+
+    // Operator cab with a roof rim and an amber beacon.
     ctx.fillStyle = WHEELED_EXCAVATOR_CAB_COLOR;
     this.roundedRectPath(0.05 * s, -0.39 * s, 0.27 * s, 0.27 * s, 0.05 * s);
     ctx.fill();
+    ctx.fillStyle = detail;
+    this.roundedRectPath(0.04 * s, -0.415 * s, 0.29 * s, 0.035 * s, 0.015 * s);
+    ctx.fill();
+    ctx.fillStyle = '#FFC043';
+    ctx.beginPath();
+    ctx.arc(0.185 * s, -0.415 * s, 0.035 * s, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.arc(0.175 * s, -0.425 * s, 0.012 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cab glass with a diagonal glare glint (matches the other cabs).
     ctx.fillStyle = WHEELED_EXCAVATOR_WINDOW_COLOR;
     this.roundedRectPath(0.10 * s, -0.34 * s, 0.17 * s, 0.16 * s, 0.03 * s);
     ctx.fill();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+    ctx.beginPath();
+    ctx.moveTo(0.15 * s, -0.33 * s);
+    ctx.lineTo(0.20 * s, -0.33 * s);
+    ctx.lineTo(0.15 * s, -0.19 * s);
+    ctx.lineTo(0.11 * s, -0.19 * s);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.restore();
     ctx.restore();
   }
